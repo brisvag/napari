@@ -120,6 +120,9 @@ class Labels(_ImageBase):
         Properties defining plane rendering in 3D. Properties are defined in
         data coordinates. Valid dictionary keys are
         {'position', 'normal_vector', 'thickness', and 'enabled'}.
+    clipping_planes: list of dicts
+        Each dict defines a clipping plane in 3D in data coordinates.
+        Valid dictionary keys are {'position', 'normal_vector', and 'enabled'}.
 
     Attributes
     ----------
@@ -184,6 +187,10 @@ class Labels(_ImageBase):
 
         In ERASE mode the cursor functions similarly to PAINT mode, but to
         paint with background label, which effectively removes the label.
+    plane : ThickPlaneManager
+        Properties defining plane rendering in 3D.
+    clipping_planes: list of PlaneManager
+        Clipping planes defined in data coordinates, used to clip the volume.
 
     Notes
     -----
@@ -511,7 +518,8 @@ class Labels(_ImageBase):
                 'num_colors': self.num_colors,
                 'properties': self._properties,
                 'rendering': self.rendering,
-                'plane': self.plane,
+                'plane': self.plane.dict(),
+                'clipping_planes': self.clipping_planes.dict(),
                 'seed': self.seed,
                 'data': self.data,
                 'color': self.color,

@@ -557,6 +557,7 @@ class ViewerModel(KeymapProvider, MousemapProvider, EventedModel):
         visible=True,
         multiscale=None,
         plane=None,
+        clipping_planes=None,
     ) -> Union[Image, List[Image]]:
         """Add an image layer to the layer list.
 
@@ -670,6 +671,9 @@ class ViewerModel(KeymapProvider, MousemapProvider, EventedModel):
             Properties defining plane rendering in 3D. Properties are defined
             in data coordinates. Valid dictionary keys are
             {'position', 'normal_vector', 'thickness', and 'enabled'}.
+        clipping_planes: list of dicts
+            Each dict defines a clipping plane in 3D in data coordinates.
+            Valid dictionary keys are {'position', 'normal_vector', and 'enabled'}.
 
         Returns
         -------
@@ -709,6 +713,7 @@ class ViewerModel(KeymapProvider, MousemapProvider, EventedModel):
             'visible': visible,
             'multiscale': multiscale,
             'plane': plane,
+            'clipping_planes': clipping_planes,
         }
 
         # these arguments are *already* iterables in the single-channel case.
@@ -720,6 +725,7 @@ class ViewerModel(KeymapProvider, MousemapProvider, EventedModel):
             'affine',
             'contrast_limits',
             'metadata',
+            'clipping_planes',
         }
 
         if channel_axis is None:
