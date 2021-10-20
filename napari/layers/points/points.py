@@ -590,15 +590,23 @@ class Points(Layer):
 
     def _get_ndim(self) -> int:
         """Determine number of dimensions of the layer."""
-        return self.data.shape[1]
+        return self._n_dense_dims + self._n_sparse_dims
 
     @property
-    def _dense_dims(self):
-        return list(range(self.data.ndim - 2, self.ndim))
+    def _n_dense_dims(self):
+        return self.data.ndim - 2
+
+    @property
+    def _n_sparse_dims(self):
+        return self.data.shape[-1]
 
     @property
     def _sparse_dims(self):
-        return list(range(self.ndim - self.data.shape[-1]))
+        return list(range(self._n_dense_dims, self.ndim))
+
+    @property
+    def _dense_dims(self):
+        return list(range(0, self._n_dense_dims))
 
     @property
     def _extent_data(self) -> np.ndarray:
@@ -612,12 +620,18 @@ class Points(Layer):
             extrema = np.full((2, self.ndim), np.nan)
         else:
             dense_mins = [0 for _ in self._dense_dims]
-            dense_maxs = self.shape[self._dense_dims]
-            mins = np.min(self._view_data)
-            maxs = np.max(self._view_data)
-            extrema = np.hstack(
-                [np.vstack([dense_mins, dense_maxs]), np.vstack([mins, maxs])]
-            )
+            # +1 because dim 0 is the point index
+            dense_maxs = np.array(self.data.shape)[
+                [d + 1 for d in self._dense_dims]
+            ]
+            dense_extrema = np.vstack([dense_mins, dense_maxs])
+            if len(self._view_data) == 0:
+                sparse_extrema = np.full((2, len(self._sparse_dims)), np.nan)
+            else:
+                sparse_mins = np.min(self._view_data)
+                sparse_maxs = np.max(self._view_data)
+                sparse_extrema = np.vstack([sparse_mins, sparse_maxs])
+            extrema = np.hstack([dense_extrema, sparse_extrema])
         return extrema
 
     @property
@@ -1239,16 +1253,10 @@ class Points(Layer):
         indices = np.array(dims_indices)
 
         dense_not_disp = [nd for nd in not_disp if nd in self._dense_dims]
-        sparse_not_disp = [
-            nd - len(self._dense_dims)
-            for nd in not_disp
-            if nd in self._sparse_dims
-        ]  # -ndense to go back to zero indexing
-        sparse_not_disp
+        # sparse_not_disp = [nd for nd in not_disp if nd in self._sparse_dims]
 
         # Check if requested slice outside of data range
         extent = self._extent_data
-        print(extent, dense_not_disp)
         if np.any(
             np.less(
                 [indices[ax] for ax in dense_not_disp],

@@ -1108,7 +1108,7 @@ class Layer(KeymapProvider, MousemapProvider, ABC):
         if self.visible:
             self.set_view_slice()
             self.events.set_data()
-            self._update_thumbnail()
+            # self._update_thumbnail()  XXX TODO
             self._set_highlight(force=True)
 
     def world_to_data(self, position):
