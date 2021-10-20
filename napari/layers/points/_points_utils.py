@@ -111,7 +111,7 @@ def fix_data_points(
         if ndim is None:
             ndim = 2
         points = np.empty((0, ndim))
-    else:
+    elif len(points.shape) <= 2:
         points = np.atleast_2d(points)
         data_ndim = points.shape[1]
         if ndim is not None and ndim != data_ndim:
@@ -122,4 +122,6 @@ def fix_data_points(
                 )
             )
         ndim = data_ndim
+    else:
+        ndim = points.shape[-1] + points.ndim - 2
     return points, ndim

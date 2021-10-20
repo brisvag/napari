@@ -593,6 +593,14 @@ class Points(Layer):
         return self.data.shape[1]
 
     @property
+    def _dense_dims(self):
+        return list(range(self.data.ndim - 2, self.ndim))
+
+    @property
+    def _sparse_dims(self):
+        return list(range(self.ndim - self.data.shape[-1]))
+
+    @property
     def _extent_data(self) -> np.ndarray:
         """Extent of layer in data coordinates.
 
@@ -603,9 +611,13 @@ class Points(Layer):
         if len(self.data) == 0:
             extrema = np.full((2, self.ndim), np.nan)
         else:
-            maxs = np.max(self.data, axis=0)
-            mins = np.min(self.data, axis=0)
-            extrema = np.vstack([mins, maxs])
+            dense_mins = [0 for _ in self._dense_dims]
+            dense_maxs = self.shape[self._dense_dims]
+            mins = np.min(self._view_data)
+            maxs = np.max(self._view_data)
+            extrema = np.hstack(
+                [np.vstack([dense_mins, dense_maxs]), np.vstack([mins, maxs])]
+            )
         return extrema
 
     @property
@@ -1223,11 +1235,37 @@ class Points(Layer):
         """
         # Get a list of the data for the points in this slice
         not_disp = list(self._dims_not_displayed)
+        # not_disp = [d - ndense for d in not_disp]
         indices = np.array(dims_indices)
+
+        dense_not_disp = [nd for nd in not_disp if nd in self._dense_dims]
+        sparse_not_disp = [
+            nd - len(self._dense_dims)
+            for nd in not_disp
+            if nd in self._sparse_dims
+        ]  # -ndense to go back to zero indexing
+        sparse_not_disp
+
+        # Check if requested slice outside of data range
+        extent = self._extent_data
+        print(extent, dense_not_disp)
+        if np.any(
+            np.less(
+                [indices[ax] for ax in dense_not_disp],
+                [extent[0, ax] for ax in dense_not_disp],
+            )
+        ) or np.any(
+            np.greater_equal(
+                [indices[ax] for ax in dense_not_disp],
+                [extent[1, ax] for ax in dense_not_disp],
+            )
+        ):
+            return [], np.empty(0)
+
         if len(self.data) > 0:
             if self.n_dimensional is True and self.ndim > 2:
-                distances = abs(self.data[:, not_disp] - indices[not_disp])
-                sizes = self.size[:, not_disp] / 2
+                distances = abs(self.data[:, 0, not_disp] - indices[not_disp])
+                sizes = self.size[:, 0, not_disp] / 2
                 matches = np.all(distances <= sizes, axis=1)
                 size_match = sizes[matches]
                 size_match[size_match == 0] = 1
@@ -1237,7 +1275,7 @@ class Points(Layer):
                 slice_indices = np.where(matches)[0].astype(int)
                 return slice_indices, scale
             else:
-                data = self.data[:, not_disp]
+                data = self.data[:, 0, not_disp]
                 distances = np.abs(data - indices[not_disp])
                 matches = np.all(distances < 1e-5, axis=1)
                 slice_indices = np.where(matches)[0].astype(int)
