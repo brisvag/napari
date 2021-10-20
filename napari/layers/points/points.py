@@ -223,6 +223,8 @@ class Points(Layer):
         Size of the point markers in the currently viewed slice.
     _indices_view : array (M, )
         Integer indices of the points in the currently viewed slice.
+    _dense_indices_view : array (O, )
+        Indices of the dense dimensions in the currently viewed slice.
     _selected_view :
         Integer indices of selected points in the currently viewed slice within
         the `_view_data` array.
@@ -365,6 +367,7 @@ class Points(Layer):
 
         # initialize view data
         self._indices_view = np.empty(0)
+        self._dense_indices_view = np.empty(0)
         self._view_size_scale = []
 
         self._drag_box = None
@@ -1144,7 +1147,11 @@ class Points(Layer):
             Array of coordinates for the N points in view
         """
         if len(self._indices_view) > 0:
-            data = self.data[np.ix_(self._indices_view, self._dims_displayed)]
+            data = self.data[
+                self._indices_view,
+                self._dense_indices_view,
+                self._dims_displayed,
+            ]
         else:
             # if no points in this slice send dummy data
             data = np.zeros((0, self._ndisplay))
@@ -1253,9 +1260,9 @@ class Points(Layer):
         indices = np.array(dims_indices)
 
         dense_not_disp = [nd for nd in not_disp if nd in self._dense_dims]
-        # sparse_not_disp = [nd for nd in not_disp if nd in self._sparse_dims]
+        sparse_not_disp = [nd for nd in not_disp if nd in self._sparse_dims]
 
-        # Check if requested slice outside of data range
+        # Check if requested slice outside of dense dims range
         extent = self._extent_data
         if np.any(
             np.less(
@@ -1272,6 +1279,7 @@ class Points(Layer):
 
         if len(self.data) > 0:
             if self.n_dimensional is True and self.ndim > 2:
+                # TODO
                 distances = abs(self.data[:, 0, not_disp] - indices[not_disp])
                 sizes = self.size[:, 0, not_disp] / 2
                 matches = np.all(distances <= sizes, axis=1)
@@ -1283,8 +1291,15 @@ class Points(Layer):
                 slice_indices = np.where(matches)[0].astype(int)
                 return slice_indices, scale
             else:
-                data = self.data[:, 0, not_disp]
-                distances = np.abs(data - indices[not_disp])
+                dense_indices_not_disp = indices[dense_not_disp].astype(int)
+                sparse_indices_not_disp = indices[sparse_not_disp].astype(int)
+                slicing = (
+                    slice(None),
+                    *dense_indices_not_disp,
+                    sparse_indices_not_disp,
+                )
+                data = self.data[slicing]
+                distances = np.abs(data - sparse_indices_not_disp)
                 matches = np.all(distances < 1e-5, axis=1)
                 slice_indices = np.where(matches)[0].astype(int)
                 return slice_indices, 1
