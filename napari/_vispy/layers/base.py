@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 
 import numpy as np
+from vispy.scene.subscene import SubScene
 from vispy.visuals.transforms import MatrixTransform
 
 from ...utils.events import disconnect_events
@@ -48,6 +49,8 @@ class VispyBaseLayer(ABC):
         self.layer = layer
         self._array_like = False
         self.node = node
+        self.subscene = SubScene()
+        self.node.parent = self.subscene
 
         (
             self.MAX_TEXTURE_SIZE_2D,
@@ -75,10 +78,10 @@ class VispyBaseLayer(ABC):
         """
         # whenever a new parent is set, the transform is reset
         # to a NullTransform so we reset it here
-        if not isinstance(self.node.transform, MatrixTransform):
-            self.node.transform = MatrixTransform()
+        if not isinstance(self.subscene.transform, MatrixTransform):
+            self.subscene.transform = MatrixTransform()
 
-        return self.node.transform
+        return self.subscene.transform
 
     @property
     def translate(self):
@@ -98,29 +101,30 @@ class VispyBaseLayer(ABC):
 
         Lower values are closer to the viewer.
         """
-        return self.node.order
+        return self.subscene.order
 
     @order.setter
     def order(self, order):
-        self.node.order = order
+        self.subscene.order = order
 
     @abstractmethod
     def _on_data_change(self):
         raise NotImplementedError()
 
     def _on_refresh_change(self):
-        self.node.update()
+        self.subscene.update()
 
     def _on_visible_change(self):
-        self.node.visible = self.layer.visible
+        self.subscene.visible = self.layer.visible
 
     def _on_opacity_change(self):
-        self.node.opacity = self.layer.opacity
+        self.subscene.opacity = self.layer.opacity
 
     def _on_blending_change(self):
         blending_kwargs = BLENDING_MODES[self.layer.blending]
-        self.node.set_gl_state(**blending_kwargs)
-        self.node.update()
+        for child in self.subscene.children:
+            child.set_gl_state(**blending_kwargs)
+        self.subscene.update()
 
     def _on_matrix_change(self):
         transform = self.layer._transforms.simplified.set_slice(
@@ -154,10 +158,11 @@ class VispyBaseLayer(ABC):
         self._master_transform.matrix = affine_matrix
 
     def _on_experimental_clipping_planes_change(self):
-        if hasattr(self.node, 'clipping_planes'):
-            self.node.clipping_planes = (
-                self.layer.experimental_clipping_planes.as_array()
-            )
+        for child in self.subscene.children:
+            if hasattr(child, 'clipping_planes'):
+                self.node.clipping_planes = (
+                    self.layer.experimental_clipping_planes.as_array()
+                )
 
     def reset(self):
         self._on_visible_change()
@@ -178,5 +183,5 @@ class VispyBaseLayer(ABC):
     def close(self):
         """Vispy visual is closing."""
         disconnect_events(self.layer.events, self)
-        self.node.transforms = MatrixTransform()
-        self.node.parent = None
+        self.subscene.transforms = MatrixTransform()
+        self.subscene.parent = None
