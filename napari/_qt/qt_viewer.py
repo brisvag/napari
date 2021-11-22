@@ -553,7 +553,7 @@ class QtViewer(QSplitter):
             if vispy_layer.events is not None:
                 vispy_layer.events.loaded.connect(self._qt_poll.wake_up)
 
-        vispy_layer.node.parent = self.view.scene
+        vispy_layer.parent = self.view.scene
         vispy_layer.order = len(self.viewer.layers) - 1
         self.layer_to_visual[layer] = vispy_layer
 

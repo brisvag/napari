@@ -43,6 +43,7 @@ class VispyBaseLayer(ABC):
 
     def __init__(self, layer, node):
         super().__init__()
+        self._parent = None
         self.events = None  # Some derived classes have events.
 
         self.layer = layer
@@ -104,6 +105,16 @@ class VispyBaseLayer(ABC):
     def order(self, order):
         self.node.order = order
 
+    @property
+    def parent(self):
+        return self._parent
+
+    @parent.setter
+    def parent(self, parent):
+        if self.layer.visible:
+            self.node.parent = parent
+        self._parent = parent
+
     @abstractmethod
     def _on_data_change(self):
         raise NotImplementedError()
@@ -112,7 +123,10 @@ class VispyBaseLayer(ABC):
         self.node.update()
 
     def _on_visible_change(self):
-        self.node.visible = self.layer.visible
+        if self.layer.visible:
+            self.node.parent = self.parent
+        else:
+            self.node.parent = None
 
     def _on_opacity_change(self):
         self.node.opacity = self.layer.opacity
