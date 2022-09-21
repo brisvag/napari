@@ -1,4 +1,6 @@
-from typing import Any, Protocol, runtime_checkable
+from __future__ import annotations
+
+from typing import Any, Optional, Protocol, runtime_checkable
 
 from .event import EmitterGroup
 
@@ -11,7 +13,11 @@ class SupportsEvents(Protocol):
     events: EmitterGroup
 
 
+@runtime_checkable
 class EventedMutable(SupportsEvents, Protocol):
+    _parent: Optional[EventedMutable]
+    _parent_key: Optional[str]
+
     def _update_inplace(self, other: Any) -> None:
         """
         Update inplace the contents of the EventedMutable to match `other`.

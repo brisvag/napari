@@ -94,6 +94,10 @@ class EventedList(TypedMutableSequence[_T]):
             'reordered': None,  # None
         }
 
+        self._parent = None
+        self._parent_key = None
+        self._do_validation = True
+
         # For inheritance: If the mro already provides an EmitterGroup, add...
         if hasattr(self, 'events') and isinstance(self.events, EmitterGroup):
             self.events.add(**_events)
@@ -124,7 +128,11 @@ class EventedList(TypedMutableSequence[_T]):
             )  # make sure we don't empty generators and reuse them
             if value == old:
                 return
-            [self._type_check(v) for v in value]  # before we mutate the list
+            new_values = [
+                self._type_check(v) for v in value
+            ]  # before we mutate the list
+            new_values[key] = value
+            value = self._validate(new_values)[key]
             if key.step is not None:  # extended slices are more restricted
                 indices = list(range(*key.indices(len(self))))
                 if not len(value) == len(indices):
@@ -146,6 +154,9 @@ class EventedList(TypedMutableSequence[_T]):
         else:
             if value is old:
                 return
+            new_values = self._list.copy()
+            new_values[key] = value
+            value = self._validate(new_values)[key]
             super().__setitem__(key, value)
             self.events.changed(index=key, old_value=old, value=value)
 
@@ -184,6 +195,10 @@ class EventedList(TypedMutableSequence[_T]):
 
     def insert(self, index: int, value: _T):
         """Insert ``value`` before index."""
+        new_values = self._list.copy()
+        new_values.insert(index, value)
+        value = self._validate(new_values)[index]
+
         self.events.inserting(index=index)
         super().insert(index, value)
         self.events.inserted(index=index, value=value)
@@ -360,3 +375,17 @@ class EventedList(TypedMutableSequence[_T]):
 
     def _update_inplace(self, other):
         self[:] = list(other)
+
+    def _validate(self, new_values):
+        if self._parent is None or not self._do_validation:
+            return new_values
+
+        if self._parent_key is not None:
+            return self._parent._validate({self._parent_key: new_values})[
+                self._parent_key
+            ]
+        else:
+            raise ValueError('parented evented objects must set _parent_key')
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({repr(self._list)})"

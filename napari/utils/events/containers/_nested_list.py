@@ -209,6 +209,7 @@ class NestableEventedList(EventedList[_T]):
         if isinstance(key, tuple):
             parent_i, index = split_nested_index(key)
             self[parent_i].__setitem__(index, value)
+            # TODO: correctly validate with nested index
             return
         self._connect_child_emitters(value)
         super().__setitem__(key, value)

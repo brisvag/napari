@@ -2,7 +2,7 @@ import operator
 import sys
 import warnings
 from contextlib import contextmanager
-from typing import Any, Callable, ClassVar, Dict, Set, Union
+from typing import Any, Callable, ClassVar, Dict, Optional, Set, Union
 
 import numpy as np
 from extra_pydantic import BaseModel, ModelMetaclass
@@ -166,6 +166,9 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
 
     # add private attributes for event emission
     _events: EmitterGroup = PrivateAttr(default_factory=EmitterGroup)
+    _parent: Optional[EventedMutable] = PrivateAttr(None)
+    _parent_key: Optional[str] = PrivateAttr(None)
+    _do_validation: bool = PrivateAttr(True)
 
     # mapping of name -> property obj for methods that are property setters
     __property_setters__: ClassVar[Dict[str, property]]
@@ -201,6 +204,9 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self._parent = None
+        self._parent_key = None
+        self._do_validation = True
 
         self._events.source = self
         # add event emitters for each field which is mutable
@@ -228,17 +234,24 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
             return self.__property_setters__[name].fset(self, value)
 
         if name in self.__fields__:
-            if (
-                self.__config__.allow_mutation == 2
-                or self.__fields__[name].field_info.allow_mutation == 2
-            ):
+            # our custom validation
+            value = self._validate({name: value})[name]
+
+            field_value = getattr(self, name)
+            if isinstance(field_value, EventedMutable):
                 # do inplace_mutation if possible
-                field_value = getattr(self, name)
-                if isinstance(field_value, EventedMutable):
-                    # we need to validate manually because we're not using pydantic's setattr
-                    value = self._validate({name: value})[name]
-                    field_value._update_inplace(value)
-                    return
+                if (
+                    self.__config__.allow_mutation == 2
+                    or self.__fields__[name].field_info.allow_mutation == 2
+                ):
+                    return field_value._update_inplace(value)
+
+                # this might be a new evented mutable but with allow_mutation = 1
+                # so we re-set parent if needed
+                value._parent = self
+                value._parent_key = name
+
+            self.__dict__[name] = value
 
         super().__setattr__(name, value)
 
@@ -264,6 +277,9 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
             for dep in self.__field_dependents__.get(name, {}):
                 getattr(self.events, dep)(value=getattr(self, dep))
 
+    def __getitem__(self, key):
+        return getattr(self, key)
+
     # expose the private EmitterGroup publically
     @property
     def events(self) -> EmitterGroup:
@@ -287,6 +303,9 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
                     child.events.connect(getattr(self.events, name))
                     # ensure the source of child event is self as well
                     getattr(self.events, name).source = self
+                    # hook up parenthood machinery
+                    child._parent = self
+                    child._parent_key = name
 
     @property
     def _defaults(self):
@@ -333,15 +352,30 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
 
     def _validate(self, new_values):
         """
-        validate values against the current model. This differs from pydantic's public
-        validate method because it won't return an instance of Self (expensive for evented models)
+        validate values against the current model and its parents. This also differs from
+        pydantic's public validate method because it won't return an instance of Self
         """
+        if not self._do_validation:
+            return new_values
+
         # __dict__ is faster than dict() and preserves inner types (see below)
         values = self.__dict__.copy()
         values.update(new_values)
         values, _, error = validate_model(self.__class__, values)
         if error:
             raise error
+
+        if self._parent is None:
+            return values
+        elif self._parent_key is not None:
+            return self._parent._validate({self._parent_key: new_values})[
+                self._parent_key
+            ]
+        else:
+            raise main.ValidationError(
+                'parented evented objects must set _parent_key'
+            )
+
         return {k: values[k] for k in new_values}
 
     def __eq__(self, other) -> bool:

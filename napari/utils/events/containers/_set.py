@@ -89,9 +89,6 @@ class EventedSet(MutableSet[_T]):
             self._set.clear()
             self._emit_change(added={}, removed=values)
 
-    def __repr__(self) -> str:
-        return f"{type(self).__name__}({repr(self._set)})"
-
     def update(self, others: Iterable[_T] = ()) -> None:
         """Update this set with the union of this set and others"""
         to_add = set(others).difference(self._set)
@@ -158,3 +155,18 @@ class EventedSet(MutableSet[_T]):
     def _update_inplace(self, other):
         self.clear()
         self.update(other)
+
+    def _validate(self, new_values):
+        if self._parent is None or not self._do_validation:
+            return new_values
+
+        if self._parent_key is not None:
+            print(new_values)
+            return self._parent._validate({self._parent_key: new_values})[
+                self._parent_key
+            ]
+        else:
+            raise ValueError('parented evented objects must set _parent_key')
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({repr(self._set)})"

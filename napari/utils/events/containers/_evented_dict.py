@@ -57,6 +57,11 @@ class EventedDict(TypedMutableMapping[_K, _T]):
             "removed": None,
             "updated": None,
         }
+
+        self._parent = None
+        self._parent_key = None
+        self._do_validation = True
+
         # For inheritance: If the mro already provides an EmitterGroup, add...
         if hasattr(self, "events") and isinstance(self.events, EmitterGroup):
             self.events.add(**_events)
@@ -70,6 +75,9 @@ class EventedDict(TypedMutableMapping[_K, _T]):
         if value is old or value == old:
             return
         if old is None:
+            new_values = self._dict.copy()  # before we mutate the list
+            new_values[key] = value
+            value = self._validate(new_values)[key]
             self.events.adding(key=key)
             super().__setitem__(key, value)
             self.events.added(key=key, value=value)
@@ -114,3 +122,18 @@ class EventedDict(TypedMutableMapping[_K, _T]):
     def _update_inplace(self, other):
         self.clear()
         self.update(other)
+
+    def _validate(self, new_values):
+        if self._parent is None or not self._do_validation:
+            return new_values
+
+        if self._parent_key is not None:
+            print(new_values)
+            return self._parent._validate({self._parent_key: new_values})[
+                self._parent_key
+            ]
+        else:
+            raise ValueError('parented evented objects must set _parent_key')
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({repr(self._dict)})"
