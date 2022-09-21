@@ -6,9 +6,10 @@ from typing import Mapping, Sequence, Type, Union
 from ..event import EmitterGroup, Event
 from ..types import SupportsEvents
 from ._dict import _K, _T, TypedMutableMapping
+from ._validation_mixin import _ParentValidatorMixin
 
 
-class EventedDict(TypedMutableMapping[_K, _T]):
+class EventedDict(_ParentValidatorMixin, TypedMutableMapping[_K, _T]):
     """Mutable dictionary that emits events when altered.
 
     This class is designed to behave exactly like builting ``dict``, but
@@ -58,10 +59,6 @@ class EventedDict(TypedMutableMapping[_K, _T]):
             "updated": None,
         }
 
-        self._parent = None
-        self._parent_key = None
-        self._do_validation = True
-
         # For inheritance: If the mro already provides an EmitterGroup, add...
         if hasattr(self, "events") and isinstance(self.events, EmitterGroup):
             self.events.add(**_events)
@@ -75,7 +72,7 @@ class EventedDict(TypedMutableMapping[_K, _T]):
         if value is old or value == old:
             return
         if old is None:
-            new_values = self._dict.copy()  # before we mutate the list
+            new_values = self._dict.copy()
             new_values[key] = value
             value = self._validate(new_values)[key]
             self.events.adding(key=key)
@@ -85,6 +82,13 @@ class EventedDict(TypedMutableMapping[_K, _T]):
         else:
             super().__setitem__(key, value)
             self.events.changed(key=key, old_value=old, value=value)
+
+    def update(self, other):
+        new_values = self._dict.copy()
+        new_values.update(other)
+        valid = self._validate(new_values)
+        with self._no_validation():
+            super().update(valid)
 
     def __delitem__(self, key: _K):
         self.events.removing(key=key)
@@ -120,20 +124,9 @@ class EventedDict(TypedMutableMapping[_K, _T]):
                 return k
 
     def _update_inplace(self, other):
-        self.clear()
-        self.update(other)
-
-    def _validate(self, new_values):
-        if self._parent is None or not self._do_validation:
-            return new_values
-
-        if self._parent_key is not None:
-            print(new_values)
-            return self._parent._validate({self._parent_key: new_values})[
-                self._parent_key
-            ]
-        else:
-            raise ValueError('parented evented objects must set _parent_key')
+        with self._no_validation():
+            self.clear()
+            self.update(other)
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}({repr(self._dict)})"

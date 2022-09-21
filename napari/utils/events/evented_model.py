@@ -1,7 +1,7 @@
 import operator
 import sys
 import warnings
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from typing import Any, Callable, ClassVar, Dict, Optional, Set, Union
 
 import numpy as np
@@ -244,7 +244,8 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
                     self.__config__.allow_mutation == 2
                     or self.__fields__[name].field_info.allow_mutation == 2
                 ):
-                    return field_value._update_inplace(value)
+                    with self._no_validation():
+                        return field_value._update_inplace(value)
 
                 # this might be a new evented mutable but with allow_mutation = 1
                 # so we re-set parent if needed
@@ -348,7 +349,8 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
             self.events(Event(self))
 
     def _update_inplace(self, other):
-        self.update(other)
+        with self._no_validation:
+            self.update(other)
 
     def _validate(self, new_values):
         """
@@ -377,6 +379,20 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
             )
 
         return {k: values[k] for k in new_values}
+
+    @contextmanager
+    def _no_validation(self):
+        self._do_validation = False
+
+        # disable validation in all children as well
+        with ExitStack() as stack:
+            for field in self.__fields__.keys():
+                child = getattr(self, field)
+                if isinstance(child, EventedMutable):
+                    stack.enter_context(child._no_validation())
+            yield
+
+        self._do_validation = True
 
     def __eq__(self, other) -> bool:
         """Check equality with another object.

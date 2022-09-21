@@ -3,11 +3,12 @@ from __future__ import annotations
 from typing import Any, Iterable, Iterator, MutableSet, TypeVar
 
 from ....utils.events import EmitterGroup
+from ._validation_mixin import _ParentValidatorMixin
 
 _T = TypeVar("_T")
 
 
-class EventedSet(MutableSet[_T]):
+class EventedSet(_ParentValidatorMixin, MutableSet[_T]):
     """An unordered collection of unique elements.
 
     Parameters
@@ -25,7 +26,7 @@ class EventedSet(MutableSet[_T]):
     events: EmitterGroup
 
     def __init__(self, data: Iterable[_T] = ()):
-
+        super().__init__()
         _events = {'changed': None}
         # For inheritance: If the mro already provides an EmitterGroup, add...
         if hasattr(self, 'events') and isinstance(self.events, EmitterGroup):
@@ -60,6 +61,9 @@ class EventedSet(MutableSet[_T]):
         """Add an element to the set, if not already present."""
         if value not in self:
             value = self._pre_add_hook(value)
+            new_values = self._set.copy()
+            new_values.add(value)
+            self._validate(new_values)
             self._set.add(value)
             self._emit_change(added={value}, removed={})
 
@@ -94,7 +98,11 @@ class EventedSet(MutableSet[_T]):
         to_add = set(others).difference(self._set)
         if to_add:
             to_add = {self._pre_add_hook(i) for i in to_add}
-            self._set.update(to_add)
+            new_values = self._set.copy()
+            new_values.update(to_add)
+            valid = self._validate(new_values)
+            with self._no_validation():
+                self._set = set(valid)
             self._emit_change(added=set(to_add), removed={})
 
     def copy(self) -> EventedSet[_T]:
@@ -153,20 +161,9 @@ class EventedSet(MutableSet[_T]):
         return list(self)
 
     def _update_inplace(self, other):
-        self.clear()
-        self.update(other)
-
-    def _validate(self, new_values):
-        if self._parent is None or not self._do_validation:
-            return new_values
-
-        if self._parent_key is not None:
-            print(new_values)
-            return self._parent._validate({self._parent_key: new_values})[
-                self._parent_key
-            ]
-        else:
-            raise ValueError('parented evented objects must set _parent_key')
+        with self._no_validation():
+            self.clear()
+            self.update(other)
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}({repr(self._set)})"

@@ -31,11 +31,12 @@ from ...translations import trans
 from ..event import EmitterGroup, Event
 from ..types import SupportsEvents
 from ._typed import _L, _T, Index, TypedMutableSequence
+from ._validation_mixin import _ParentValidatorMixin
 
 logger = logging.getLogger(__name__)
 
 
-class EventedList(TypedMutableSequence[_T]):
+class EventedList(_ParentValidatorMixin, TypedMutableSequence[_T]):
     """Mutable Sequence that emits events when altered.
 
     This class is designed to behave exactly like the builtin ``list``, but
@@ -94,10 +95,6 @@ class EventedList(TypedMutableSequence[_T]):
             'reordered': None,  # None
         }
 
-        self._parent = None
-        self._parent_key = None
-        self._do_validation = True
-
         # For inheritance: If the mro already provides an EmitterGroup, add...
         if hasattr(self, 'events') and isinstance(self.events, EmitterGroup):
             self.events.add(**_events)
@@ -128,9 +125,8 @@ class EventedList(TypedMutableSequence[_T]):
             )  # make sure we don't empty generators and reuse them
             if value == old:
                 return
-            new_values = [
-                self._type_check(v) for v in value
-            ]  # before we mutate the list
+            # before we mutate the list   return
+            new_values = [self._type_check(v) for v in value]
             new_values[key] = value
             value = self._validate(new_values)[key]
             if key.step is not None:  # extended slices are more restricted
@@ -145,12 +141,14 @@ class EventedList(TypedMutableSequence[_T]):
                         )
                     )
                 for i, v in zip(indices, value):
-                    self.__setitem__(i, v)
+                    with self._no_validation():
+                        self.__setitem__(i, v)
             else:
                 del self[key]
                 start = key.start or 0
-                for i, v in enumerate(value):
-                    self.insert(start + i, v)
+                with self._no_validation():
+                    for i, v in enumerate(value):
+                        self.insert(start + i, v)
         else:
             if value is old:
                 return
@@ -374,18 +372,8 @@ class EventedList(TypedMutableSequence[_T]):
         self.events.reordered(value=self)
 
     def _update_inplace(self, other):
-        self[:] = list(other)
-
-    def _validate(self, new_values):
-        if self._parent is None or not self._do_validation:
-            return new_values
-
-        if self._parent_key is not None:
-            return self._parent._validate({self._parent_key: new_values})[
-                self._parent_key
-            ]
-        else:
-            raise ValueError('parented evented objects must set _parent_key')
+        with self._no_validation():
+            self[:] = list(other)
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}({repr(self._list)})"
