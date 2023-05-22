@@ -270,8 +270,8 @@ class Points(Layer):
 
     Notes
     -----
-    _view_data : array (M, 2)
-        2D coordinates of points in the currently viewed slice.
+    _view_data : array (M, D)
+        coordinates of points in the currently viewed slice.
     _view_size : array (M, )
         Size of the point markers in the currently viewed slice.
     _view_symbol : array (M, )
@@ -751,10 +751,10 @@ class Points(Layer):
     @property
     def _extent_data_augmented(self):
         extent = self._extent_data
-        if len(self._view_size) == 0:
+        if len(self.size) == 0:
             return extent
 
-        max_point_size = np.max(self._view_size)
+        max_point_size = np.max(self.size)
         extent[0] -= max_point_size / 2
         extent[1] += max_point_size / 2
         return extent
@@ -840,7 +840,7 @@ class Points(Layer):
                     stacklevel=2,
                 )
 
-        self._clear_extent_agumented()
+        self._clear_extent_augmented()
         self.refresh()
 
     @property
@@ -883,7 +883,6 @@ class Points(Layer):
             self.size[idx] = (self.size[idx] > 0) * size
             self.refresh()
             self.events.size()
-        self._clear_extent_agumented()
         self.events.current_size()
 
     @property
