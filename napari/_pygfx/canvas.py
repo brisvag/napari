@@ -1,19 +1,15 @@
-"""VispyCanvas class."""
+"""PygfxCanvas class."""
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from weakref import WeakSet
 
 import numpy as np
-from superqt.utils import qthrottled
-from vispy.scene import SceneCanvas as SceneCanvas_, Widget
+import pygfx as gfx
+from wgpu.gui.auto import WgpuCanvas
 
-from napari._vispy import VispyCamera
+from napari._pygfx.camera import PygfxCamera
 from napari._vispy.utils.cursor import QtCursorVisual
-from napari._vispy.utils.gl import get_max_texture_sizes
-from napari._vispy.utils.visual import create_vispy_layer, create_vispy_overlay
-from napari.components.overlays import CanvasOverlay, SceneOverlay
 from napari.utils._proxies import ReadOnlyWrapper
 from napari.utils.colormaps.standardize_color import transform_color
 from napari.utils.interactions import (
@@ -23,148 +19,59 @@ from napari.utils.interactions import (
     mouse_release_callbacks,
     mouse_wheel_callbacks,
 )
-from napari.utils.theme import get_theme
 
 if TYPE_CHECKING:
     from typing import Callable, Union
 
     import numpy.typing as npt
-    from qtpy.QtCore import Qt, pyqtBoundSignal
-    from qtpy.QtGui import QCursor, QImage
-    from vispy.app.backends._qt import CanvasBackendDesktop
+    from qtpy.QtCore import Qt
+    from qtpy.QtGui import QCursor
     from vispy.app.canvas import DrawEvent, MouseEvent, ResizeEvent
 
-    from napari._vispy.layers.base import VispyBaseLayer
-    from napari._vispy.overlays.base import VispyBaseOverlay
-    from napari.components import ViewerModel
     from napari.components.overlays import Overlay
     from napari.layers import Layer
     from napari.utils.events.event import Event
-    from napari.utils.key_bindings import KeymapHandler
 
 
-class NapariSceneCanvas(SceneCanvas_):
-    """Vispy SceneCanvas used to allow for ignoring mouse wheel events with modifiers."""
-
-    def _process_mouse_event(self, event: MouseEvent):
-        """Ignore mouse wheel events which have modifiers."""
-        if event.type == 'mouse_wheel' and len(event.modifiers) > 0:
-            return
-        if event.handled:
-            return
-        super()._process_mouse_event(event)
-
-
-class VispyCanvas:
-    """Class for our QtViewer class to interact with Vispy SceneCanvas. Also
-    connects Vispy SceneCanvas events to the napari ViewerModel and vice versa.
-
-    Parameters
-    ----------
-    viewer : napari.components.ViewerModel
-        Napari viewer containing the rendered scene, layers, and controls.
-
-    Attributes
-    ----------
-    layer_to_visual : dict(napari.layers, napari._vispy.layers)
-        A mapping of the napari layers that have been added to the viewer and their corresponding vispy counterparts.
-    max_texture_sizes : Tuple[int, int]
-        The max textures sizes as a (2d, 3d) tuple.
-    viewer : napari.components.ViewerModel
-        Napari viewer containing the rendered scene, layers, and controls.
-    view : vispy.scene.widgets.viewbox.ViewBox
-        Rectangular widget in which a subscene is rendered.
-    camera : napari._vispy.VispyCamera
-        The camera class which contains both the 2d and 3d camera used to describe the perspective by which a
-        scene is viewed and interacted with.
-    _cursors : QtCursorVisual
-        A QtCursorVisual enum with as names the names of particular cursor styles and as value either a staticmethod
-        creating a bitmap or a Qt.CursorShape enum value corresponding to the particular cursor name. This enum only
-        contains cursors supported by Napari in Vispy.
-    _key_map_handler : napari.utils.key_bindings.KeymapHandler
-        KeymapHandler handling the calling functionality when keys are pressed that have a callback function mapped.
-    _last_theme_color : Optional[npt.NDArray[np.float]]
-        Theme color represented as numpy ndarray of shape (4,) before theme change
-        was applied.
-    _overlay_to_visual : dict(napari.components.overlays, napari._vispy.overlays)
-        A mapping of the napari overlays that are part of the viewer and their corresponding Vispy counterparts.
-    _scene_canvas : napari._vispy.canvas.NapariSceneCanvas
-        SceneCanvas which automatically draws the contents of a scene. It is ultimately a VispySceneCanvas, but allows
-        for ignoring mousewheel events with modifiers.
-    """
-
-    _instances: WeakSet[VispyCanvas] = WeakSet()
-
+class PygfxCanvas:
     def __init__(
         self,
-        viewer: ViewerModel,
-        key_map_handler: KeymapHandler,
-        *args,
+        viewer,
+        key_map_handler,
+        autoswap,
         **kwargs,
-    ) -> None:
-        # Since the base class is frozen we must create this attribute
-        # before calling super().__init__().
-        self.max_texture_sizes = None
-        self._last_theme_color = None
+    ):
         self.viewer = viewer
-        self._scene_canvas = NapariSceneCanvas(
-            *args, keys=None, vsync=True, **kwargs
-        )
-        self.view = self.central_widget.add_view(border_width=0)
-        self.camera = VispyCamera(
-            self.view, self.viewer.camera, self.viewer.dims
-        )
-        self.layer_to_visual: dict[Layer, VispyBaseLayer] = {}
-        self._overlay_to_visual: dict[Overlay, VispyBaseOverlay] = {}
+        self._scene_canvas = WgpuCanvas(**kwargs)
+        self.layer_to_visual = {}
+        self._overlay_to_visual = {}
         self._key_map_handler = key_map_handler
-        self._instances.add(self)
-
-        self.bgcolor = transform_color(
-            get_theme(self.viewer.theme).canvas.as_hex()
-        )[0]
-
-        # Call get_max_texture_sizes() here so that we query OpenGL right
-        # now while we know a Canvas exists. Later calls to
-        # get_max_texture_sizes() will return the same results because it's
-        # using an lru_cache.
-        self.max_texture_sizes = get_max_texture_sizes()
 
         for overlay in self.viewer._overlays.values():
             self._add_overlay_to_visual(overlay)
 
-        self._scene_canvas.events.ignore_callback_errors = False
-        self._scene_canvas.context.set_depth_func('lequal')
+        self.renderer = gfx.WgpuRenderer(self._scene_canvas)
+        self.scene = gfx.Scene()
+        self.camera = PygfxCamera(
+            self.scene, self.renderer, self.viewer.camera, self.viewer.dims
+        )
 
-        # Connecting events from SceneCanvas
-        self._scene_canvas.events.key_press.connect(
-            self._key_map_handler.on_key_press
-        )
-        self._scene_canvas.events.key_release.connect(
-            self._key_map_handler.on_key_release
-        )
-        self._scene_canvas.events.draw.connect(self.enable_dims_play)
-        self._scene_canvas.events.draw.connect(self.camera.on_draw)
+        self.background = gfx.Background.from_color('blue')
+        self.scene.add(self.background)
 
-        self._scene_canvas.events.mouse_double_click.connect(
-            self._on_mouse_double_click
+        image = gfx.Image(
+            gfx.Geometry(
+                grid=gfx.Texture(
+                    np.random.rand(100, 100).astype(np.float32) * 255, dim=2
+                )
+            ),
+            gfx.ImageBasicMaterial(clim=(0, 255)),
         )
-        self._scene_canvas.events.mouse_move.connect(
-            qthrottled(self._on_mouse_move, timeout=5)
+        self.scene.add(image)
+
+        self._scene_canvas.request_draw(
+            lambda: self.renderer.render(self.scene, self.camera._2D_camera)
         )
-        self._scene_canvas.events.mouse_press.connect(self._on_mouse_press)
-        self._scene_canvas.events.mouse_release.connect(self._on_mouse_release)
-        self._scene_canvas.events.mouse_wheel.connect(self._on_mouse_wheel)
-        self._scene_canvas.events.resize.connect(self.on_resize)
-        self._scene_canvas.events.draw.connect(self.on_draw)
-        self.viewer.cursor.events.style.connect(self._on_cursor)
-        self.viewer.cursor.events.size.connect(self._on_cursor)
-        self.viewer.events.theme.connect(self._on_theme_change)
-        self.viewer.camera.events.mouse_pan.connect(self._on_interactive)
-        self.viewer.camera.events.mouse_zoom.connect(self._on_interactive)
-        self.viewer.camera.events.zoom.connect(self._on_cursor)
-        self.viewer.layers.events.reordered.connect(self._reorder_layers)
-        self.viewer.layers.events.removed.connect(self._remove_layer)
-        self.destroyed.connect(self._disconnect_theme)
 
     @property
     def events(self):
@@ -173,25 +80,46 @@ class VispyCanvas:
         return self._scene_canvas.events
 
     @property
-    def destroyed(self) -> pyqtBoundSignal:
-        return self._scene_canvas._backend.destroyed
+    def destroyed(self):
+        return self._scene_canvas.destroyed
 
     @property
-    def native(self) -> CanvasBackendDesktop:
+    def native(self):
         """Returns the native widget of the Vispy SceneCanvas."""
-        return self._scene_canvas.native
+        return self._scene_canvas
 
     @property
-    def screen_changed(self) -> Callable:
+    def screen_changed(self):
         """Bound method returning signal indicating whether the window screen has changed."""
-        return self._scene_canvas._backend.screen_changed
+        return lambda: False
 
-    def _on_theme_change(self, event: Event) -> None:
+    @property
+    def background_color_override(self):
+        """Background color of VispyCanvas.view returned as hex string. When not None, color is shown instead of
+        VispyCanvas.bgcolor. The setter expects str (any in vispy.color.get_color_names) or hex starting
+        with # or a tuple | np.array ({3,4},) with values between 0 and 1.
+
+        """
+        return self.bgcolor
+
+    @background_color_override.setter
+    def background_color_override(
+        self, value: Union[str, npt.ArrayLike, None]
+    ):
+        if value:
+            self.view.bgcolor = value
+        else:
+            self.view.bgcolor = None
+
+    def _on_theme_change(self, event: Event):
         self._set_theme_change(event.value)
 
-    def _set_theme_change(self, theme: str) -> None:
+    def _set_theme_change(self, theme: str):
         from napari.utils.theme import get_theme
 
+        # Note 1. store last requested theme color, in case we need to reuse it
+        # when clearing the background_color_override, without needing to
+        # keep track of the viewer.
         # Note 2. the reason for using the `as_hex` here is to avoid
         # `UserWarning` which is emitted when RGB values are above 1
         self._last_theme_color = transform_color(
@@ -199,33 +127,22 @@ class VispyCanvas:
         )[0]
         self.bgcolor = self._last_theme_color
 
-    def _disconnect_theme(self) -> None:
+    def _disconnect_theme(self):
         self.viewer.events.theme.disconnect(self._on_theme_change)
 
     @property
-    def bgcolor(self) -> str:
+    def bgcolor(self):
         """Background color of the vispy scene canvas as a hex string. The setter expects str
         (any in vispy.color.get_color_names) or hex starting with # or a tuple | np.array ({3,4},)
         with values between 0 and 1."""
         return self._scene_canvas.bgcolor.hex
 
     @bgcolor.setter
-    def bgcolor(self, value: Union[str, npt.ArrayLike]) -> None:
+    def bgcolor(self, value: Union[str, npt.ArrayLike]):
         self._scene_canvas.bgcolor = value
 
     @property
-    def central_widget(self) -> Widget:
-        """Overrides SceneCanvas.central_widget to make border_width=0"""
-        if self._scene_canvas._central_widget is None:
-            self._scene_canvas._central_widget = Widget(
-                size=self.size,
-                parent=self._scene_canvas.scene,
-                border_width=0,
-            )
-        return self._scene_canvas._central_widget
-
-    @property
-    def size(self) -> tuple[int, int]:
+    def size(self):
         """Return canvas size as tuple (height, width) or accepts size as tuple (height, width)
         and sets Vispy SceneCanvas size as (width, height)."""
         return self._scene_canvas.size[::-1]
@@ -235,7 +152,7 @@ class VispyCanvas:
         self._scene_canvas.size = size[::-1]
 
     @property
-    def cursor(self) -> QCursor:
+    def cursor(self):
         """Cursor associated with native widget"""
         return self.native.cursor()
 
@@ -244,7 +161,7 @@ class VispyCanvas:
         """Setting the cursor of the native widget"""
         self.native.setCursor(q_cursor)
 
-    def _on_cursor(self) -> None:
+    def _on_cursor(self):
         """Create a QCursor based on the napari cursor settings and set in Vispy."""
 
         cursor = self.viewer.cursor.style
@@ -280,11 +197,11 @@ class VispyCanvas:
         else:
             self.cursor = QtCursorVisual[cursor].value
 
-    def delete(self) -> None:
+    def delete(self):
         """Schedules the native widget for deletion"""
         self.native.deleteLater()
 
-    def _on_interactive(self) -> None:
+    def _on_interactive(self):
         """Link interactive attributes of view and viewer."""
         # Is this should be changed or renamed?
         self.view.interactive = (
@@ -294,7 +211,7 @@ class VispyCanvas:
     def _map_canvas2world(
         self,
         position: tuple[int, ...],
-    ) -> tuple[float, float]:
+    ):
         """Map position from canvas pixels into world coordinates.
 
         Parameters
@@ -329,18 +246,16 @@ class VispyCanvas:
         return tuple(position_world)
 
     def _process_key_press(self, event):
-        self._scene_canvas._backend._keyEvent(
-            self._scene_canvas.events.key_press, event
-        )
+        from rich import inspect
+
+        inspect(event)
 
     def _process_key_release(self, event):
-        self._scene_canvas._backend._keyEvent(
-            self._scene_canvas.events.key_release, event
-        )
+        pass
 
     def _process_mouse_event(
         self, mouse_callbacks: Callable, event: MouseEvent
-    ) -> None:
+    ):
         """Add properties to the mouse event before passing the event to the
         napari events system. Called whenever the mouse moves or is clicked.
         As such, care should be taken to reduce the overhead in this function.
@@ -402,7 +317,7 @@ class VispyCanvas:
         if layer is not None:
             mouse_callbacks(layer, event)
 
-    def _on_mouse_double_click(self, event: MouseEvent) -> None:
+    def _on_mouse_double_click(self, event: MouseEvent):
         """Called whenever a mouse double-click happen on the canvas
 
         Parameters
@@ -427,7 +342,7 @@ class VispyCanvas:
         """
         self._process_mouse_event(mouse_double_click_callbacks, event)
 
-    def _on_mouse_move(self, event: MouseEvent) -> None:
+    def _on_mouse_move(self, event: MouseEvent):
         """Called whenever mouse moves over canvas.
 
         Parameters
@@ -441,7 +356,7 @@ class VispyCanvas:
         """
         self._process_mouse_event(mouse_move_callbacks, event)
 
-    def _on_mouse_press(self, event: MouseEvent) -> None:
+    def _on_mouse_press(self, event: MouseEvent):
         """Called whenever mouse pressed in canvas.
 
         Parameters
@@ -455,7 +370,7 @@ class VispyCanvas:
         """
         self._process_mouse_event(mouse_press_callbacks, event)
 
-    def _on_mouse_release(self, event: MouseEvent) -> None:
+    def _on_mouse_release(self, event: MouseEvent):
         """Called whenever mouse released in canvas.
 
         Parameters
@@ -469,7 +384,7 @@ class VispyCanvas:
         """
         self._process_mouse_event(mouse_release_callbacks, event)
 
-    def _on_mouse_wheel(self, event: MouseEvent) -> None:
+    def _on_mouse_wheel(self, event: MouseEvent):
         """Called whenever mouse wheel activated in canvas.
 
         Parameters
@@ -484,7 +399,7 @@ class VispyCanvas:
         self._process_mouse_event(mouse_wheel_callbacks, event)
 
     @property
-    def _canvas_corners_in_world(self) -> npt.NDArray:
+    def _canvas_corners_in_world(self):
         """Location of the corners of canvas in world coordinates.
 
         Returns
@@ -497,7 +412,7 @@ class VispyCanvas:
         bottom_right = self._map_canvas2world(self._scene_canvas.size)
         return np.array([top_left, bottom_right])
 
-    def on_draw(self, event: DrawEvent) -> None:
+    def on_draw(self, event: DrawEvent):
         """Called whenever the canvas is drawn.
 
         This is triggered from vispy whenever new data is sent to the canvas or
@@ -533,7 +448,7 @@ class VispyCanvas:
                 shape_threshold=self._scene_canvas.size,
             )
 
-    def on_resize(self, event: ResizeEvent) -> None:
+    def on_resize(self, event: ResizeEvent):
         """Called whenever canvas is resized.
 
         Parameters
@@ -547,10 +462,7 @@ class VispyCanvas:
         """
         self.viewer._canvas_size = self.size
 
-    def add_layer(
-        self,
-        napari_layer: Layer,
-    ) -> None:
+    def add_layer(self, napari_layer: Layer):
         """Maps a napari layer to its corresponding vispy layer and sets the parent scene of the vispy layer.
 
         Parameters
@@ -564,17 +476,16 @@ class VispyCanvas:
         -------
         None
         """
-        vispy_layer = create_vispy_layer(napari_layer)
+        return
+        # vispy_layer.node.parent = self.view.scene
+        # self.layer_to_visual[napari_layer] = vispy_layer
+        #
+        # napari_layer.events.visible.connect(self._reorder_layers)
+        # self.viewer.camera.events.angles.connect(vispy_layer._on_camera_move)
+        #
+        # self._reorder_layers()
 
-        vispy_layer.node.parent = self.view.scene
-        self.layer_to_visual[napari_layer] = vispy_layer
-
-        napari_layer.events.visible.connect(self._reorder_layers)
-        self.viewer.camera.events.angles.connect(vispy_layer._on_camera_move)
-
-        self._reorder_layers()
-
-    def _remove_layer(self, event: Event) -> None:
+    def _remove_layer(self, event: Event):
         """Upon receiving event closes the Vispy visual, deletes it and reorders the still existing layers.
 
         Parameters
@@ -595,7 +506,7 @@ class VispyCanvas:
         del self.layer_to_visual[layer]
         self._reorder_layers()
 
-    def _reorder_layers(self) -> None:
+    def _reorder_layers(self):
         """When the list is reordered, propagate changes to draw order."""
         first_visible_found = False
 
@@ -614,18 +525,19 @@ class VispyCanvas:
         self._scene_canvas._draw_order.clear()
         self._scene_canvas.update()
 
-    def _add_overlay_to_visual(self, overlay: Overlay) -> None:
+    def _add_overlay_to_visual(self, overlay: Overlay):
         """Create vispy overlay and add to dictionary of overlay visuals"""
-        vispy_overlay = create_vispy_overlay(
-            overlay=overlay, viewer=self.viewer
-        )
-        if isinstance(overlay, CanvasOverlay):
-            vispy_overlay.node.parent = self.view
-        elif isinstance(overlay, SceneOverlay):
-            vispy_overlay.node.parent = self.view.scene
-        self._overlay_to_visual[overlay] = vispy_overlay
+        return
+        # vispy_overlay = create_vispy_overlay(
+        #     overlay=overlay, viewer=self.viewer
+        # )
+        # if isinstance(overlay, CanvasOverlay):
+        #     vispy_overlay.node.parent = self.view
+        # elif isinstance(overlay, SceneOverlay):
+        #     vispy_overlay.node.parent = self.view.scene
+        # self._overlay_to_visual[overlay] = vispy_overlay
 
-    def _calculate_view_direction(self, event_pos: list[float]) -> list[float]:
+    def _calculate_view_direction(self, event_pos: list[float]):
         """calculate view direction by ray shot from the camera"""
         # this method is only implemented for 3 dimension
         if self.viewer.dims.ndisplay == 2:
@@ -636,7 +548,7 @@ class VispyCanvas:
         w, h = self.size
         nd = self.viewer.dims.ndisplay
 
-        transform = self.view.scene.transform
+        transform = self.scene.transform
         # map click pos to scene coordinates
         click_scene = transform.imap([x, y, 0, 1])
         # canvas center at infinite far z- (eye position in canvas coordinates)
@@ -659,10 +571,10 @@ class VispyCanvas:
         view_direction_nd[list(self.viewer.dims.displayed)] = d
         return view_direction_nd
 
-    def screenshot(self) -> QImage:
+    def screenshot(self):
         """Return a QImage based on what is shown in the viewer."""
-        return self.native.grabFramebuffer()
+        return self.renderer.snapshot()
 
-    def enable_dims_play(self, *args) -> None:
+    def enable_dims_play(self, *args):
         """Enable playing of animation. False if awaiting a draw event"""
         self.viewer.dims._play_ready = True

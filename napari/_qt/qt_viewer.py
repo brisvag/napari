@@ -17,11 +17,12 @@ from typing import (
 from weakref import WeakSet, ref
 
 import numpy as np
-from qtpy.QtCore import QCoreApplication, QObject, Qt, QUrl
+from qtpy.QtCore import QCoreApplication, Qt, QUrl
 from qtpy.QtGui import QGuiApplication
 from qtpy.QtWidgets import QFileDialog, QSplitter, QVBoxLayout, QWidget
 from superqt import ensure_main_thread
 
+from napari._pygfx import PygfxCanvas
 from napari._qt.containers import QtLayerList
 from napari._qt.dialogs.qt_reader_dialog import handle_gui_reading
 from napari._qt.dialogs.screenshot_dialog import ScreenshotDialog
@@ -34,14 +35,13 @@ from napari._qt.widgets.qt_viewer_buttons import (
 )
 from napari._qt.widgets.qt_viewer_dock_widget import QtViewerDockWidget
 from napari._qt.widgets.qt_welcome import QtWidgetOverlay
-from napari.components.camera import Camera
-from napari.components.layerlist import LayerList
+from napari._vispy import VispyCanvas
 from napari.errors import MultipleReaderError, ReaderPluginError
 from napari.layers.base.base import Layer
 from napari.plugins import _npe2
 from napari.settings import get_settings
 from napari.settings._application import DaskSettings
-from napari.utils import config, perf, resize_dask_cache
+from napari.utils import perf, resize_dask_cache
 from napari.utils.action_manager import action_manager
 from napari.utils.history import (
     get_open_history,
@@ -56,8 +56,6 @@ from napari.utils.naming import CallerFrame
 from napari.utils.notifications import show_info
 from napari.utils.translations import trans
 from napari_builtins.io import imsave_extensions
-
-from napari._vispy import VispyCanvas, create_vispy_layer  # isort:skip
 
 if TYPE_CHECKING:
     from napari_console import QtConsole
@@ -161,10 +159,6 @@ class QtViewer(QSplitter):
         Napari viewer containing the rendered scene, layers, and controls.
     _key_map_handler : napari.utils.key_bindings.KeymapHandler
         KeymapHandler handling the calling functionality when keys are pressed that have a callback function mapped
-    _qt_poll : Optional[napari._qt.experimental.qt_poll.QtPoll]
-        A QtPoll object required for the monitor.
-    _remote_manager : napari.components.experimental.remote.RemoteManager
-        A remote manager processing commands from remote clients and sending out messages when polled.
     _welcome_widget : napari._qt.widgets.qt_welcome.QtWidgetOverlay
         QtWidgetOverlay providing the stacked widgets for the welcome page.
     """
@@ -175,7 +169,7 @@ class QtViewer(QSplitter):
         self,
         viewer: ViewerModel,
         show_welcome_screen: bool = False,
-        canvas_class: type[VispyCanvas] = VispyCanvas,
+        canvas_class: type[VispyCanvas | PygfxCanvas] = PygfxCanvas,
     ) -> None:
         super().__init__()
         self._instances.add(self)
@@ -206,10 +200,10 @@ class QtViewer(QSplitter):
         # This dictionary holds the corresponding vispy visual for each layer
         self.canvas = canvas_class(
             viewer=viewer,
-            parent=self,
             key_map_handler=self._key_map_handler,
             size=self.viewer._canvas_size,
             autoswap=get_settings().experimental.autoswap_buffers,  # see #5734
+            parent=self,
         )
 
         # Stacked widget to provide a welcome page
@@ -243,14 +237,6 @@ class QtViewer(QSplitter):
 
         self.setAcceptDrops(True)
 
-        # Create the experimental QtPool for the monitor.
-        self._qt_poll = _create_qt_poll(self, self.viewer.camera)
-
-        # Create the experimental RemoteManager for the monitor.
-        self._remote_manager = _create_remote_manager(
-            self.viewer.layers, self._qt_poll
-        )
-
         # bind shortcuts stored in settings last.
         self._bind_shortcuts()
 
@@ -263,47 +249,6 @@ class QtViewer(QSplitter):
 
         for layer in self.viewer.layers:
             self._add_layer(layer)
-
-    @property
-    def view(self):
-        """
-        Rectangular  vispy viewbox widget in which a subscene is rendered. Access directly within the QtViewer will
-        become deprecated.
-        """
-        warnings.warn(
-            trans._(
-                'Access to QtViewer.view is deprecated since 0.5.0 and will be removed in the napari 0.6.0. Change to QtViewer.canvas.view instead.'
-            ),
-            FutureWarning,
-            stacklevel=2,
-        )
-        return self.canvas.view
-
-    @property
-    def camera(self):
-        """
-        The Vispy camera class which contains both the 2d and 3d camera used to describe the perspective by which a
-        scene is viewed and interacted with. Access directly within the QtViewer will become deprecated.
-        """
-        warnings.warn(
-            trans._(
-                'Access to QtViewer.camera will become deprecated in the 0.6.0. Change to QtViewer.canvas.camera instead.'
-            ),
-            FutureWarning,
-            stacklevel=2,
-        )
-        return self.canvas.camera
-
-    @property
-    def chunk_receiver(self) -> None:
-        warnings.warn(
-            trans._(
-                'QtViewer.chunk_receiver is deprecated in version 0.5 and will be removed in a later version. '
-                'More generally the old approach to async loading was removed in version 0.5 so this value is always None. '
-                'If you need to specifically use the old approach, continue to use the latest 0.4 release.'
-            ),
-            DeprecationWarning,
-        )
 
     @staticmethod
     def _update_dask_cache_settings(
@@ -665,21 +610,7 @@ class QtViewer(QSplitter):
         layer : napari.layers.Layer
             Layer to be added.
         """
-        vispy_layer = create_vispy_layer(layer)
-
-        # QtPoll is experimental.
-        if self._qt_poll is not None:
-            # QtPoll will call VipyBaseImage._on_poll() when the camera
-            # moves or the timer goes off.
-            self._qt_poll.events.poll.connect(vispy_layer._on_poll)
-
-            # In the other direction, some visuals need to tell QtPoll to
-            # start polling. When they receive new data they need to be
-            # polled to load it, even if the camera is not moving.
-            if vispy_layer.events is not None:
-                vispy_layer.events.loaded.connect(self._qt_poll.wake_up)
-
-        self.canvas.add_layer_visual_mapping(layer, vispy_layer)
+        self.canvas.add_layer(layer)
 
     def _remove_invalid_chars(self, selected_layer_name):
         """Removes invalid characters from selected layer name to suggest a filename.
@@ -1042,9 +973,7 @@ class QtViewer(QSplitter):
         event : qtpy.QtCore.QEvent
             Event from the Qt context.
         """
-        self.canvas._scene_canvas._backend._keyEvent(
-            self.canvas._scene_canvas.events.key_press, event
-        )
+        self.canvas._process_key_press(event)
         event.accept()
 
     def keyReleaseEvent(self, event):
@@ -1055,9 +984,7 @@ class QtViewer(QSplitter):
         event : qtpy.QtCore.QEvent
             Event from the Qt context.
         """
-        self.canvas._scene_canvas._backend._keyEvent(
-            self.canvas._scene_canvas.events.key_release, event
-        )
+        self.canvas._process_key_release(event)
         event.accept()
 
     def dragEnterEvent(self, event):
@@ -1186,81 +1113,6 @@ class QtViewer(QSplitter):
             self.console.close()
         self.dockConsole.deleteLater()
         event.accept()
-
-
-if TYPE_CHECKING:
-    from napari._qt.experimental.qt_poll import QtPoll
-    from napari.components.experimental.remote import RemoteManager
-
-
-def _create_qt_poll(parent: QObject, camera: Camera) -> Optional[QtPoll]:
-    """Create and return a QtPoll instance, if needed.
-
-    Create a QtPoll instance for the monitor.
-
-    Monitor needs QtPoll to poll for incoming messages. This might be
-    temporary until we can process incoming messages with a dedicated
-    thread.
-
-    Parameters
-    ----------
-    parent : QObject
-        Parent Qt object.
-    camera : Camera
-        Camera that the QtPoll object will listen to.
-
-    Returns
-    -------
-    Optional[QtPoll]
-        The new QtPoll instance, if we need one.
-    """
-    if not config.monitor:
-        return None
-
-    from napari._qt.experimental.qt_poll import QtPoll
-
-    qt_poll = QtPoll(parent)
-    camera.events.connect(qt_poll.on_camera)
-    return qt_poll
-
-
-def _create_remote_manager(
-    layers: LayerList, qt_poll
-) -> Optional[RemoteManager]:
-    """Create and return a RemoteManager instance, if we need one.
-
-    Parameters
-    ----------
-    layers : LayersList
-        The viewer's layers.
-    qt_poll : QtPoll
-        The viewer's QtPoll instance.
-    """
-    if not config.monitor:
-        return None  # Not using the monitor at all
-
-    from napari.components.experimental.monitor import monitor
-    from napari.components.experimental.remote import RemoteManager
-
-    # Start the monitor so we can access its events. The monitor has no
-    # dependencies to napari except to utils.Event.
-    started = monitor.start()
-
-    if not started:
-        return None  # Probably not >= Python 3.9, so no manager is needed.
-
-    # Create the remote manager and have monitor call its process_command()
-    # method to execute commands from clients.
-    manager = RemoteManager(layers)
-
-    # RemoteManager will process incoming command from the monitor.
-    monitor.run_command_event.connect(manager.process_command)
-
-    # QtPoll should pool the RemoteManager and the Monitor.
-    qt_poll.events.poll.connect(manager.on_poll)
-    qt_poll.events.poll.connect(monitor.on_poll)
-
-    return manager
 
 
 def _in_napari(n: int, frame: FrameType):
