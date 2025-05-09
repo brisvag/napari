@@ -35,14 +35,11 @@ class VispyCamera:
 
         # Create 2D camera
         self._2D_camera = MouseToggledPanZoomCamera(aspect=1)
-        self._2D_camera.viewbox_key_event = viewbox_key_event
 
         # Create 3D camera
         self._3D_camera = MouseToggledArcballCamera(fov=0)
-        self._3D_camera.viewbox_key_event = viewbox_key_event
 
-        # Set 2D camera by default
-        self._view.camera = self._2D_camera
+        self._on_ndisplay_change()
 
         self._dims.events.ndisplay.connect(
             self._on_ndisplay_change, position='first'
@@ -161,6 +158,8 @@ class VispyCamera:
         self._view.camera.mouse_pan = mouse_pan
 
     def _on_ndisplay_change(self):
+        # remove previous camera from children
+        self._view.camera.parent = None
         if self._dims.ndisplay == 3:
             self._view.camera = self._3D_camera
             self._on_angles_change()
@@ -206,35 +205,31 @@ class VispyCamera:
         self.perspective = self._camera.perspective
 
     def _on_angles_change(self):
-        self.angles = self._camera.angles
+        with self._camera.events.angles.blocker():
+            self.angles = self._camera.angles
 
     def on_draw(self, _event):
         """Called whenever the canvas is drawn.
 
         Update camera model angles, center, and zoom.
         """
-        if isinstance(self._view.camera, MouseToggledArcballCamera):
+        if not np.allclose(self.angles, self._camera.angles) and (
+            self._view.camera,
+            MouseToggledArcballCamera,
+        ):
             with self._camera.events.angles.blocker(self._on_angles_change):
                 self._camera.angles = self.angles
-        with self._camera.events.center.blocker(self._on_center_change):
-            self._camera.center = self.center
-        with self._camera.events.zoom.blocker(self._on_zoom_change):
-            self._camera.zoom = self.zoom
-        with self._camera.events.perspective.blocker(
-            self._on_perspective_change
-        ):
-            self._camera.perspective = self.perspective
-
-
-def viewbox_key_event(event):
-    """ViewBox key event handler.
-
-    Parameters
-    ----------
-    event : vispy.util.event.Event
-        The vispy event that triggered this method.
-    """
-    return
+        if not np.allclose(self.center, self._camera.center):
+            with self._camera.events.center.blocker(self._on_center_change):
+                self._camera.center = self.center
+        if not np.allclose(self.zoom, self._camera.zoom):
+            with self._camera.events.zoom.blocker(self._on_zoom_change):
+                self._camera.zoom = self.zoom
+        if not np.allclose(self.perspective, self._camera.perspective):
+            with self._camera.events.perspective.blocker(
+                self._on_perspective_change
+            ):
+                self._camera.perspective = self.perspective
 
 
 def add_mouse_pan_zoom_toggles(
@@ -246,6 +241,9 @@ def add_mouse_pan_zoom_toggles(
     panning and zooming on and off. This decorator adds separate toggles,
     ``mouse_pan`` and ``mouse_zoom``, to enable controlling them
     separately.
+
+    This also overrides viewbox_mouse_event and viewbox_key_event which are
+    called unnecessarily for us and cause exceptions in some cases.
 
     Parameters
     ----------
@@ -275,6 +273,24 @@ def add_mouse_pan_zoom_toggles(
                 super().viewbox_mouse_event(event)
             else:
                 event.handled = False
+
+        def viewbox_resize_event(self, event):
+            # due to the 2d/3d switching of cameras, sometimes we momentarily
+            # try to update cameras that are not in the scenegraph;
+            # in that case, we can just skip the update
+            if self not in event.source.scene.children:
+                return
+            super().viewbox_resize_event(event)
+
+        def viewbox_key_event(self, event):
+            """ViewBox key event handler.
+
+            Parameters
+            ----------
+            event : vispy.util.event.Event
+                The vispy event that triggered this method.
+            """
+            return
 
     return _vispy_camera_cls
 

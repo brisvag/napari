@@ -120,6 +120,10 @@ class VispyCanvas:
         self.cameras.append(
             VispyCamera(self.views[0], self.viewer.camera, self.viewer.dims)
         )
+        # overlay_view is overlapped to the whole canvas and it's
+        # where we put general canvas overlays
+        self.overlay_view = self.central_widget.add_view(border_width=0)
+
         self.layer_to_visual: dict[Layer, VispyBaseLayer] = {}
         self._overlay_to_visual: dict[Overlay, VispyBaseOverlay] = {}
         self._layer_overlay_to_visual: dict[
@@ -171,10 +175,22 @@ class VispyCanvas:
         self.viewer.camera.events.zoom.connect(self._on_cursor)
         self.viewer.layers.events.reordered.connect(self._reorder_layers)
         self.viewer.layers.events.removed.connect(self._remove_layer)
+        self.viewer.layers.selection.events.connect(
+            self._highlight_selected_grid
+        )
         self.viewer.grid.events.connect(self._on_grid_change)
         self.destroyed.connect(self._disconnect_theme)
 
         self._on_grid_change()
+
+    # for backwards compatibility
+    @property
+    def view(self):
+        return self.views[0]
+
+    @property
+    def camera(self):
+        return self.cameras[0]
 
     @property
     def events(self):
@@ -341,8 +357,11 @@ class VispyCanvas:
             of the viewer.
         """
         nd = self.viewer.dims.ndisplay
-        # TODO: properly get position in correct subview
-        transform = self.views[0].scene.transform
+
+        view = self._scene_canvas.visual_at(position) or self.views[0]
+        # combine the viewbox transform wit the scene transform
+        # so each quadrant in grid mode maps back to the main scene
+        transform = view.transform * view.scene.transform
         # cartesian to homogeneous coordinates
         mapped_position = transform.imap(list(position))
         if nd == 3:
@@ -591,8 +610,6 @@ class VispyCanvas:
         napari_layer.events.visible.connect(self._reorder_layers)
         self.viewer.camera.events.angles.connect(vispy_layer._on_camera_move)
 
-        # create overlay visuals for this layer
-        self._update_layer_overlays_to_visual(napari_layer)
         # we need to trigger _on_matrix_change once after adding the overlays so that
         # all children nodes are assigned the correct transforms
         vispy_layer._on_matrix_change()
@@ -641,6 +658,8 @@ class VispyCanvas:
 
         self._scene_canvas._draw_order.clear()
         self._scene_canvas.update()
+        if self.viewer.grid.enabled:
+            self._on_grid_change()
 
     def _add_overlay_to_visual(self, overlay: Overlay) -> None:
         """Create vispy overlay and add to dictionary of overlay visuals"""
@@ -648,7 +667,7 @@ class VispyCanvas:
             vispy_overlay = create_vispy_overlay(
                 overlay=overlay, viewer=self.viewer
             )
-            vispy_overlay.node.parent = self.grid
+            vispy_overlay.node.parent = self.overlay_view
             self._connect_canvas_overlay_events(overlay)
         else:
             for view in self.views:
@@ -671,33 +690,34 @@ class VispyCanvas:
         )
 
     def _update_layer_overlays_to_visual(self, layer: Layer) -> None:
+        # reparenting does not work well with grid mode (we end up with overlay visuals
+        # "clipping" where the grid cell boundary used to be...) so we just remake them
+        # whenever we need to change them
+        for overlay in list(self._layer_overlay_to_visual[layer]):
+            overlay_visual = self._layer_overlay_to_visual[layer].pop(overlay)
+            overlay_visual.close()
+
         overlay_models = layer._overlays.values()
-
-        # add missing overlay visuals
         for overlay in overlay_models:
-            if overlay in self._layer_overlay_to_visual[layer]:
-                continue
-
             with layer.events._overlays.blocker():
                 overlay_visual = create_vispy_overlay(overlay, layer=layer)
             self._layer_overlay_to_visual[layer][overlay] = overlay_visual
-
-        # remove stale ones if any
-        for overlay in list(self._layer_overlay_to_visual[layer]):
-            if overlay not in overlay_models:
-                overlay_visual = self._layer_overlay_to_visual[layer].pop(
-                    overlay
-                )
-                if isinstance(overlay, CanvasOverlay):
-                    self._disconnect_canvas_overlay_events(overlay)
-                overlay_visual.close()
 
         # set parent node appropriately and connect events
         for overlay, overlay_visual in self._layer_overlay_to_visual[
             layer
         ].items():
             if isinstance(overlay, CanvasOverlay):
-                overlay_visual.node.parent = self.view
+                if self.viewer.grid.enabled:
+                    row, col = self.viewer.grid.position(
+                        self.viewer.layers.index(layer),
+                        len(self.viewer.layers),
+                    )
+                    view = self.grid[row, col]
+                else:
+                    view = self.overlay_view
+
+                overlay_visual.node.parent = view
                 self._connect_canvas_overlay_events(overlay)
             else:
                 overlay_visual.node.parent = self.layer_to_visual[layer].node
@@ -797,30 +817,64 @@ class VispyCanvas:
             camera._3D_camera.parent = None
             self._scene_canvas.events.draw.disconnect(camera.on_draw)
         self.cameras.clear()
+        self.views.clear()
 
-        while len(self.grid.children) > 1:
-            view = self.grid.children[-1]
-            # remove_widget is bugged and does not remove from children fully, so we also set parent to None
-            view.parent = None
-            self.grid.remove_widget(view)
+        # grid are really not designed to be reset, so it's easier to replace it
+        self.grid.parent = None
+        self.grid = self.central_widget.add_grid(border_width=0)
 
+        if self.viewer.grid.enabled:
+            self._setup_layer_views_in_grid()
+        else:
+            self._setup_single_view()
+
+    def _setup_single_view(self):
+        view = self.grid.add_view(0, 0, border_width=0)
+        camera = VispyCamera(view, self.viewer.camera, self.viewer.dims)
+        self.views.append(view)
+        self.cameras.append(camera)
+
+        self._scene_canvas.events.draw.connect(camera.on_draw)
         for napari_layer in self.viewer.layers:
             vispy_layer = self.layer_to_visual[napari_layer]
-            if self.viewer.grid.enabled:
-                row, col = self.viewer.grid.position(
-                    self.viewer.layers.index(napari_layer),
-                    len(self.viewer.layers),
-                )
-                view = self.grid[col, row]
-                vispy_layer.node.parent = view.scene
-                # TODO: a bit overkill for now, we should only need napari to communicate with
-                # all the cameras OR only vispy to link. However, because we rely on vispy
-                # cameras to handle events first and then send to napari, this isn't quite
-                # as straightforward as it seems
-                camera = VispyCamera(
-                    self.grid[col, row], self.viewer.camera, self.viewer.dims
-                )
-                self._scene_canvas.events.draw.connect(camera.on_draw)
-                self.cameras.append(camera)
-            else:
-                vispy_layer.node.parent = self.views[0].scene
+            vispy_layer.node.parent = self.views[0].scene
+            self._update_layer_overlays_to_visual(napari_layer)
+
+    def _setup_layer_views_in_grid(self):
+        for napari_layer in self.viewer.layers:
+            row, col = self.viewer.grid.position(
+                self.viewer.layers.index(napari_layer),
+                len(self.viewer.layers),
+            )
+            # TODO: hook up theme to border color
+            view = self.grid.add_view(row, col, border_width=1)
+            # TODO: a bit overkill for now, we should only need napari to communicate with
+            # all the cameras OR only vispy to link. However, because we rely on vispy
+            # cameras to handle events first and then send to napari, this isn't quite
+            # as straightforward as it seems
+            camera = VispyCamera(view, self.viewer.camera, self.viewer.dims)
+            self._scene_canvas.events.draw.connect(camera.on_draw)
+            self.views.append(view)
+            self.cameras.append(camera)
+
+            vispy_layer = self.layer_to_visual[napari_layer]
+            vispy_layer.node.parent = view.scene
+            self._update_layer_overlays_to_visual(napari_layer)
+
+        self._highlight_selected_grid()
+
+    def _highlight_selected_grid(self):
+        if not self.viewer.grid.enabled:
+            return
+        for napari_layer in self.viewer.layers:
+            row, col = self.viewer.grid.position(
+                self.viewer.layers.index(napari_layer),
+                len(self.viewer.layers),
+            )
+            # TODO: hook up theme to border color
+            color = 'gray'
+            if napari_layer in self.viewer.layers.selection:
+                color = 'white'
+            if napari_layer is self.viewer.layers.selection.active:
+                color = 'yellow'
+            self.grid[row, col].border_color = color
