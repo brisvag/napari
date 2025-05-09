@@ -690,6 +690,11 @@ class VispyCanvas:
         )
 
     def _update_layer_overlays_to_visual(self, layer: Layer) -> None:
+        """Update the overlay visuals for each layer in the canvas.
+
+        Also ensures that overlays are properly assigned parents depending on
+        they class (canvas vs scene overlays).
+        """
         # reparenting does not work well with grid mode (we end up with overlay visuals
         # "clipping" where the grid cell boundary used to be...) so we just remake them
         # whenever we need to change them
