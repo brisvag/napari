@@ -597,6 +597,10 @@ class VispyCanvas:
         for camera in (self.camera, *self.grid_cameras):
             camera.on_draw(event)
 
+        # must be done here because the viewbox sizes are not properly updated
+        # until the canvas is drawn, and they are needed for proper positioning
+        self._update_overlay_canvas_positions()
+
         # The canvas corners in full world coordinates (i.e. across all layers).
         canvas_corners_world = self._canvas_corners_in_world
         for layer in self.viewer.layers:
@@ -632,7 +636,6 @@ class VispyCanvas:
         """
         self.viewer._canvas_size = self.size
         self._update_grid_spacing()
-        self._update_overlay_canvas_positions()
 
     def add_layer_visual_mapping(
         self, napari_layer: Layer, vispy_layer: VispyBaseLayer
@@ -724,8 +727,6 @@ class VispyCanvas:
                 vispy_layer.first_visible = False
             vispy_layer._on_blending_change()
 
-        self._update_overlay_canvas_positions()
-
         self._scene_canvas._draw_order.clear()
         self._scene_canvas.update()
 
@@ -740,8 +741,6 @@ class VispyCanvas:
             vispy_overlay = create_vispy_overlay(
                 overlay=overlay, viewer=self.viewer, parent=view
             )
-            if isinstance(overlay, CanvasOverlay):
-                self._connect_canvas_overlay_events(overlay)
             self._overlay_to_visual.setdefault(overlay, []).append(
                 vispy_overlay
             )
@@ -777,18 +776,6 @@ class VispyCanvas:
                 for view in views:
                     self._add_viewer_overlay(overlay, view.scene)
 
-    def _connect_canvas_overlay_events(self, overlay):
-        overlay.events.position.connect(self._update_overlay_canvas_positions)
-        overlay.events.visible.connect(self._update_overlay_canvas_positions)
-
-    def _disconnect_canvas_overlay_events(self, overlay):
-        overlay.events.position.disconnect(
-            self._update_overlay_canvas_positions
-        )
-        overlay.events.visible.disconnect(
-            self._update_overlay_canvas_positions
-        )
-
     def _add_layer_overlay(
         self, layer: Layer, overlay: Overlay, parent: Node
     ) -> None:
@@ -796,16 +783,12 @@ class VispyCanvas:
         vispy_overlay = create_vispy_overlay(
             overlay, layer=layer, parent=parent
         )
-        if isinstance(overlay, CanvasOverlay):
-            self._connect_canvas_overlay_events(overlay)
 
         self._layer_overlay_to_visual[layer][overlay] = vispy_overlay
 
     def _remove_layer_overlays(self, layer: Layer) -> None:
         """Remove all layer overlay visuals and disconnect their events."""
         for overlay in list(self._layer_overlay_to_visual[layer]):
-            if isinstance(overlay, CanvasOverlay):
-                self._disconnect_canvas_overlay_events(overlay)
             vispy_overlay = self._layer_overlay_to_visual[layer].pop(overlay)
             vispy_overlay.close()
 
@@ -864,7 +847,9 @@ class VispyCanvas:
                     yield overlay, vispy_overlay
 
     def _update_overlay_canvas_positions(self, event=None):
-        views = [self.view] if self.viewer.grid.enabled else self.grid_views
+        views = (
+            [self.view] if not self.viewer.grid.enabled else self.grid_views
+        )
         for view in views:
             x_offsets = dict.fromkeys(CanvasPosition, 0)
             y_offsets = dict.fromkeys(CanvasPosition, 0)
@@ -962,7 +947,6 @@ class VispyCanvas:
 
         self._reorder_layers()
         self._update_viewer_overlays()
-        self._update_overlay_canvas_positions()
         self._on_interactive()
 
     def _setup_single_view(self):
