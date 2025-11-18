@@ -403,7 +403,7 @@ class VispyCanvas:
     def _on_boxzoom(self, event):
         """Update zoom level."""
         box_size_canvas = np.abs(
-            np.diff(self.viewer._zoom_box.canvas_positions, axis=0)
+            np.diff(self.viewer._zoom_box.position, axis=0)
         )
         box_center_world = np.mean(event.value, axis=0)
         ratio = np.min(self._current_viewbox_size / box_size_canvas)
@@ -844,6 +844,12 @@ class VispyCanvas:
         vispy_overlay = create_vispy_overlay(
             overlay=overlay, viewer=self.viewer, parent=parent
         )
+        if isinstance(overlay, CanvasOverlay):
+            self._connect_canvas_overlay_events(overlay)
+            overlay.events.gridded.connect(self._update_viewer_overlays)
+            vispy_overlay.canvas_position_callback = (
+                self._defer_overlay_position_update
+            )
         self._overlay_to_visual.setdefault(overlay, []).append(vispy_overlay)
 
     def _remove_viewer_overlays(self) -> None:
@@ -1046,63 +1052,6 @@ class VispyCanvas:
 
         self._needs_overlay_position_update = False
 
-    def _remove_viewer_overlays(self) -> None:
-        """Remove all viewer overlay visuals and disconnect their events."""
-        for overlay in list(self._overlay_to_visual):
-            vispy_overlay = self._overlay_to_visual.pop(overlay)
-            vispy_overlay.close()
-
-    def _update_viewer_overlays(self):
-        """Update the viewer overlay visuals.
-
-        Also ensures that overlays are properly assigned parents depending on
-        their class (canvas vs scene overlays).
-        """
-        self._remove_viewer_overlays()
-
-        for overlay in self.viewer._overlays.values():
-            if isinstance(overlay, CanvasOverlay):
-                self._add_viewer_overlay(overlay, self.view)
-            else:
-                self._add_viewer_overlay(overlay, self.view.scene)
-
-    def _add_layer_overlay(
-        self, layer: Layer, overlay: Overlay, parent: Node
-    ) -> None:
-        """Create vispy overlay and add to dictionary of layer overlay visuals"""
-        vispy_overlay = create_vispy_overlay(
-            overlay, layer=layer, parent=parent
-        )
-
-        self._layer_overlay_to_visual[layer][overlay] = vispy_overlay
-
-    def _remove_layer_overlays(self, layer: Layer) -> None:
-        """Remove all layer overlay visuals and disconnect their events."""
-        for overlay in list(self._layer_overlay_to_visual[layer]):
-            vispy_overlay = self._layer_overlay_to_visual[layer].pop(overlay)
-            vispy_overlay.close()
-
-    def _update_layer_overlays(self, layer: Layer) -> None:
-        """Update the overlay visuals for each layer in the canvas.
-
-        Also ensures that overlays are properly assigned parents depending on
-        their class (canvas vs scene overlays).
-        """
-        # reparenting does not work well in a few cases (we end up with overlay visuals
-        # "clipping" through the canvas edges) so we just remake them
-        # whenever we need to change them.
-        self._remove_layer_overlays(layer)
-
-        overlay_models = layer._overlays.values()
-
-        for overlay in overlay_models:
-            if isinstance(overlay, CanvasOverlay):
-                parent = self.view
-            else:
-                parent = self.layer_to_visual[layer].node
-
-            self._add_layer_overlay(layer, overlay, parent)
-
     def _calculate_view_direction(
         self, event_pos: tuple[float, float]
     ) -> npt.NDArray[np.float64] | None:
@@ -1182,9 +1131,8 @@ class VispyCanvas:
         self.on_draw(None)
 
     def _setup_single_view(self):
-        for napari_layer, vispy_layer in self.layer_to_visual.items():
+        for vispy_layer in self.layer_to_visual.values():
             vispy_layer.node.parent = self.view.scene
-            self._update_layer_overlays(napari_layer)
 
     def _setup_layer_views_in_grid(self):
         for (row, col), layer_indices in self.viewer.grid.iter_viewboxes(
@@ -1206,7 +1154,6 @@ class VispyCanvas:
                 napari_layer = self.viewer.layers[idx]
                 vispy_layer = self.layer_to_visual[napari_layer]
                 vispy_layer.node.parent = view.scene
-                self._update_layer_overlays(napari_layer)
 
     @property
     def _current_viewbox_size(self):
