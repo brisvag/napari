@@ -53,6 +53,8 @@ def test_labels_drawing_with_polygons(MouseEvent, make_napari_viewer):
     layer.mode = 'polygon'
     layer.selected_label = 1
 
+    viewer.window._qt_viewer.canvas.on_draw(None)
+
     # Place some random points and then cancel them all
     for _ in range(5):
         position = (0,) + tuple(np.random.randint(20, size=2))
@@ -73,6 +75,8 @@ def test_labels_drawing_with_polygons(MouseEvent, make_napari_viewer):
             dims_displayed=(1, 2),
         )
         mouse_press_callbacks(layer, event)
+
+    viewer.window._qt_viewer.canvas.on_draw(None)
 
     assert np.array_equiv(data[0, :], 0)
 
@@ -112,6 +116,8 @@ def test_labels_drawing_with_polygons(MouseEvent, make_napari_viewer):
         )
         mouse_press_callbacks(layer, event)
 
+    viewer.window._qt_viewer.canvas.on_draw(None)
+
     # Finish drawing
     complete_polygon(layer)
 
@@ -131,6 +137,8 @@ def test_labels_drawing_with_polygons(MouseEvent, make_napari_viewer):
             dims_displayed=(1, 2),
         )
         mouse_press_callbacks(layer, event)
+
+    viewer.window._qt_viewer.canvas.on_draw(None)
 
     # Finish drawing
     complete_polygon(layer)
