@@ -19,8 +19,6 @@ from typing import (
 
 import magicgui as mgui
 import numpy as np
-import pint
-from npe2 import plugin_manager as pm
 
 from napari.layers.base._base_constants import (
     BaseProjectionMode,
@@ -69,6 +67,7 @@ from napari.utils.translations import trans
 
 if TYPE_CHECKING:
     import numpy.typing as npt
+    import pint
 
     from napari.components.dims import Dims
     from napari.components.overlays.base import Overlay
@@ -2081,6 +2080,8 @@ class Layer(KeymapProvider, MousemapProvider, ABC, metaclass=PostInit):
             self.corner_pixels = corners
 
     def _get_source_info(self) -> dict:
+        from npe2 import plugin_manager as pm
+
         components = {}
         if self.source.reader_plugin:
             components['layer_name'] = self.name

@@ -41,7 +41,7 @@ from napari.layers.base.base import Layer
 from napari.plugins import _npe2
 from napari.settings import get_settings
 from napari.settings._application import DaskSettings
-from napari.utils import config, perf, resize_dask_cache
+from napari.utils import config, perf
 from napari.utils.action_manager import action_manager
 from napari.utils.geometry import get_center_bbox
 from napari.utils.history import (
@@ -275,6 +275,9 @@ class QtViewer(QSplitter):
         """Update dask cache to match settings."""
         if not dask_setting:
             return
+
+        from napari.utils._dask_utils import resize_dask_cache
+
         if not isinstance(dask_setting, DaskSettings):
             dask_setting = get_settings().application.dask
 

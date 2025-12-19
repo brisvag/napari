@@ -14,16 +14,30 @@ ViewerModel
     layer-related controls.
 """
 
-from napari.components.camera import Camera
-from napari.components.dims import Dims
-from napari.components.layerlist import LayerList
+from lazy_loader import attach
 
 # Note that importing _viewer_key_bindings is needed as the Viewer gets
 # decorated with keybindings during that process, but it is not directly needed
 # by our users and so is deleted below
-from napari.components import _viewer_key_bindings  # isort:skip
-from napari.components.viewer_model import ViewerModel  # isort:skip
+import napari.components._viewer_key_bindings as _viewer_key_bindings
 
 del _viewer_key_bindings
 
-__all__ = ['Camera', 'Dims', 'LayerList', 'ViewerModel']
+_submod_attrs = {
+    'camera': ['Camera'],
+    'dims': ['Dims'],
+    'layerlist': ['LayerList'],
+    'viewer_model': ['ViewerModel'],  # isort:skip
+}
+
+# Add everything that needs to be accessible from the napari namespace here.
+_proto_all_ = [
+    'Camera',
+    'Dims',
+    'LayerList',
+    'ViewerModel',
+]
+
+__getattr__, __dir__, __all__ = attach(
+    __name__, submodules=_proto_all_, submod_attrs=_submod_attrs
+)
