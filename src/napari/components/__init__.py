@@ -27,16 +27,10 @@ _submod_attrs = {
     'camera': ['Camera'],
     'dims': ['Dims'],
     'layerlist': ['LayerList'],
-    'viewer_model': ['ViewerModel'],  # isort:skip
+    'viewer_model': ['ViewerModel'],
 }
 
-# Add everything that needs to be accessible from the napari namespace here.
-_proto_all_ = [
-    'Camera',
-    'Dims',
-    'LayerList',
-    'ViewerModel',
-]
+_proto_all_ = []
 
 __getattr__, __dir__, __all__ = attach(
     __name__, submodules=_proto_all_, submod_attrs=_submod_attrs
