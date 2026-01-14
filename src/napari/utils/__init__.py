@@ -1,27 +1,14 @@
-from napari._check_numpy_version import NUMPY_VERSION_IS_THREADSAFE
-from napari.utils.colormaps.colormap import (
-    Colormap,
-    CyclicLabelColormap,
-    DirectLabelColormap,
-)
-from napari.utils.info import citation_text, sys_info
-from napari.utils.notebook_display import (
-    NotebookScreenshot,
-    nbscreenshot,
-)
-from napari.utils.progress import cancelable_progress, progrange, progress
+from lazy_loader import attach
 
-__all__ = (
-    'NUMPY_VERSION_IS_THREADSAFE',
-    'Colormap',
-    'CyclicLabelColormap',
-    'DirectLabelColormap',
-    'NotebookScreenshot',
-    'cancelable_progress',
-    'citation_text',
-    'nbscreenshot',
-    'progrange',
-    'progress',
-    'resize_dask_cache',
-    'sys_info',
+_submod_attrs = {
+    'colormaps': ['Colormap', 'CyclicLabelColormap', 'DirectLabelColormap'],
+    'info': ['citation_text', 'sys_info'],
+    'notebook_display': ['NotebookScreenshot', 'nbscreenshot'],
+    'progress': ['cancelable_progress', 'progrange', 'progress'],
+}
+
+_proto_all_ = []
+
+__getattr__, __dir__, __all__ = attach(
+    __name__, submodules=_proto_all_, submod_attrs=_submod_attrs
 )
