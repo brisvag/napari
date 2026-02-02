@@ -36,6 +36,7 @@ from napari.components.overlays import (
     Overlay,
     ScaleBarOverlay,
     TextOverlay,
+    WelcomeOverlay,
     ZoomOverlay,
 )
 from napari.errors import (
@@ -114,6 +115,7 @@ def _current_theme() -> str:
 
 
 DEFAULT_OVERLAYS = {
+    'welcome': WelcomeOverlay,
     'scale_bar': ScaleBarOverlay,
     'text': TextOverlay,
     'axes': AxesOverlay,
@@ -287,6 +289,10 @@ class ViewerModel(KeymapProvider, MousemapProvider, EventedModel):
     @property
     def text_overlay(self):
         return self._overlays['text']
+
+    @property
+    def welcome_screen(self):
+        return self._overlays['welcome']
 
     @property
     def _zoom_box(self):
@@ -879,7 +885,7 @@ class ViewerModel(KeymapProvider, MousemapProvider, EventedModel):
             top of the provided scale, rotate, and shear values.
         axis_labels : tuple of str
             Dimension names of the layer data.
-            If not provided, axis_labels will be set to (..., 'axis -2', 'axis -1').
+            If not provided, axis_labels will be set to (..., '-2', '-1').
         attenuation : float or list of float
             Attenuation rate for attenuated maximum intensity projection.
         blending : str or list of str
