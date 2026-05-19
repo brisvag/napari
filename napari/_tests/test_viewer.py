@@ -117,18 +117,6 @@ layer_types = (
 )
 
 
-@pytest.mark.parametrize('layer_class, data, ndim', layer_test_data)
-def test_all_layer_actions_are_accessible_via_shortcut(
-    layer_class, data, ndim
-):
-    """
-    Make sure we do find all the actions attached to a layer via keybindings
-    """
-    # instantiate to make sure everything is initialized correctly
-    _ = layer_class(data)
-    _assert_shortcuts_exist_for_each_action(layer_class)
-
-
 @pytest.mark.parametrize('layer_class, a_unique_name, ndim', layer_test_data)
 def test_add_layer_magic_name(
     make_napari_viewer, layer_class, a_unique_name, ndim

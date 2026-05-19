@@ -16,6 +16,18 @@ def mock_run():
             yield napari.run
 
 
+@pytest.fixture
+def stub_viewer():
+    qt_viewer = mock.Mock()
+    qt_viewer._qt_open = mock.Mock()
+    window = mock.Mock()
+    window._qt_viewer = qt_viewer
+    viewer = mock.Mock()
+    viewer._window = window
+    viewer.window = window
+    return viewer
+
+
 def test_cli_works(monkeypatch, capsys):
     """Test the cli runs and shows help"""
     monkeypatch.setattr(sys, 'argv', ['napari', '-h'])
@@ -32,33 +44,57 @@ def test_cli_shows_plugins(monkeypatch, capsys, tmp_plugin):
     assert tmp_plugin.name in str(capsys.readouterr())
 
 
-def test_cli_parses_unknowns(mock_run, monkeypatch, make_napari_viewer):
+def test_cli_parses_unknowns(mock_run, monkeypatch, stub_viewer):
     """test that we can parse layer keyword arg variants"""
-    v = make_napari_viewer()  # our mock view_path will return this object
-
-    def assert_kwargs(*args, **kwargs):
-        assert ["file"] in args
-        assert kwargs['contrast_limits'] == (0, 1)
+    v = stub_viewer  # our mock view_path will return this object
 
     # testing all the variants of literal_evals
     with mock.patch('napari.Viewer', return_value=v):
-        monkeypatch.setattr(
-            napari.components.viewer_model.ViewerModel, 'open', assert_kwargs
-        )
         with monkeypatch.context() as m:
             m.setattr(
                 sys, 'argv', ['n', 'file', '--contrast-limits', '(0, 1)']
             )
             __main__._run()
+        v._window._qt_viewer._qt_open.assert_called_once_with(
+            ['file'],
+            stack=[],
+            plugin=None,
+            layer_type=None,
+            contrast_limits=(0, 1),
+        )
+        v._window._qt_viewer._qt_open.reset_mock()
         with monkeypatch.context() as m:
             m.setattr(sys, 'argv', ['n', 'file', '--contrast-limits', '(0,1)'])
             __main__._run()
+        v._window._qt_viewer._qt_open.assert_called_once_with(
+            ['file'],
+            stack=[],
+            plugin=None,
+            layer_type=None,
+            contrast_limits=(0, 1),
+        )
+        v._window._qt_viewer._qt_open.reset_mock()
         with monkeypatch.context() as m:
             m.setattr(sys, 'argv', ['n', 'file', '--contrast-limits=(0, 1)'])
             __main__._run()
+        v._window._qt_viewer._qt_open.assert_called_once_with(
+            ['file'],
+            stack=[],
+            plugin=None,
+            layer_type=None,
+            contrast_limits=(0, 1),
+        )
+        v._window._qt_viewer._qt_open.reset_mock()
         with monkeypatch.context() as m:
             m.setattr(sys, 'argv', ['n', 'file', '--contrast-limits=(0,1)'])
             __main__._run()
+        v._window._qt_viewer._qt_open.assert_called_once_with(
+            ['file'],
+            stack=[],
+            plugin=None,
+            layer_type=None,
+            contrast_limits=(0, 1),
+        )
 
 
 def test_cli_raises(monkeypatch):
@@ -89,17 +125,16 @@ def test_cli_runscript(run_path, monkeypatch, tmp_path):
     run_path.assert_called_once_with(str(script))
 
 
-@mock.patch('napari._qt.qt_viewer.QtViewer._qt_open')
-def test_cli_passes_kwargs(qt_open, mock_run, monkeypatch, make_napari_viewer):
+def test_cli_passes_kwargs(mock_run, monkeypatch, stub_viewer):
     """test that we can parse layer keyword arg variants"""
-    v = make_napari_viewer()
+    v = stub_viewer
 
     with mock.patch('napari.Viewer', return_value=v):
         with monkeypatch.context() as m:
             m.setattr(sys, 'argv', ['n', 'file', '--name', 'some name'])
             __main__._run()
 
-    qt_open.assert_called_once_with(
+    v._window._qt_viewer._qt_open.assert_called_once_with(
         ['file'],
         stack=[],
         plugin=None,
@@ -109,12 +144,11 @@ def test_cli_passes_kwargs(qt_open, mock_run, monkeypatch, make_napari_viewer):
     mock_run.assert_called_once_with(gui_exceptions=True)
 
 
-@mock.patch('napari._qt.qt_viewer.QtViewer._qt_open')
 def test_cli_passes_kwargs_stack(
-    qt_open, mock_run, monkeypatch, make_napari_viewer
+    mock_run, monkeypatch, stub_viewer
 ):
     """test that we can parse layer keyword arg variants"""
-    v = make_napari_viewer()
+    v = stub_viewer
 
     with mock.patch('napari.Viewer', return_value=v):
         with monkeypatch.context() as m:
@@ -136,7 +170,7 @@ def test_cli_passes_kwargs_stack(
             )
             __main__._run()
 
-    qt_open.assert_called_once_with(
+    v._window._qt_viewer._qt_open.assert_called_once_with(
         ['file'],
         stack=[['file1', 'file2'], ['file3', 'file4']],
         plugin=None,
@@ -146,9 +180,9 @@ def test_cli_passes_kwargs_stack(
     mock_run.assert_called_once_with(gui_exceptions=True)
 
 
-def test_cli_retains_viewer_ref(mock_run, monkeypatch, make_napari_viewer):
+def test_cli_retains_viewer_ref(mock_run, monkeypatch, stub_viewer):
     """Test that napari.__main__ is retaining a reference to the viewer."""
-    v = make_napari_viewer()  # our mock view_path will return this object
+    v = stub_viewer  # our mock view_path will return this object
     ref_count = None  # counter that will be updated before __main__._run()
 
     def _check_refs(**kwargs):
@@ -168,10 +202,6 @@ def test_cli_retains_viewer_ref(mock_run, monkeypatch, make_napari_viewer):
         # return our local v
         with mock.patch('napari.Viewer', return_value=v) as mock_viewer:
             ref_count = sys.getrefcount(v)  # count current references
-            # mock gui open so we're not opening dialogs/throwing errors on fake path
-            with mock.patch(
-                'napari._qt.qt_viewer.QtViewer._qt_open', return_value=None
-            ) as mock_viewer_open:
-                __main__._run()
+            __main__._run()
             mock_viewer.assert_called_once()
-            mock_viewer_open.assert_called_once()
+            v._window._qt_viewer._qt_open.assert_called_once()
