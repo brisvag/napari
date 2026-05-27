@@ -45,6 +45,12 @@ class NapariMouseEvent(InputEvent):
     def is_dragging(self) -> bool:
         return self.press_event is not None and bool(self.buttons)
 
+    def __post_init__(self) -> None:
+        if self.pos is not None and not isinstance(self.pos, np.ndarray):
+            self.pos = np.asarray(self.pos, dtype=float)
+        if self.delta is not None and not isinstance(self.delta, np.ndarray):
+            self.delta = np.asarray(self.delta, dtype=float)
+
 
 class InputEventEmitter:
     mouse_press = Signal(object)
@@ -54,4 +60,3 @@ class InputEventEmitter:
     mouse_wheel = Signal(object)
     key_press = Signal(object)
     key_release = Signal(object)
-

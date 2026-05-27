@@ -46,9 +46,9 @@ class VispyBrushCircleOverlay(ViewerOverlayMixin, VispyCanvasOverlay):
 
         # manually connect this once and get the correct canvas
         if self.node.parent is not None:
-            self.node.parent.scene.canvas.events.mouse_move.connect(
-                self._on_mouse_move
-            )
+            canvas = self.node.parent.scene.canvas
+            if getattr(canvas, 'input_events', None) is not None:
+                canvas.input_events.mouse_move.connect(self._on_mouse_move)
 
     def _on_position_change(self, event: Event | None = None) -> None:
         self._set_position(self.overlay.position)
@@ -75,9 +75,15 @@ class VispyBrushCircleOverlay(ViewerOverlayMixin, VispyCanvasOverlay):
 
     def _on_canvas_change(self, event: Event) -> None:
         if event.new is not None:
-            event.new.events.mouse_move.connect(self._on_mouse_move)
+            if getattr(event.new, 'input_events', None) is not None:
+                event.new.input_events.mouse_move.connect(
+                    self._on_mouse_move
+                )
         if event.old is not None:
-            event.old.events.mouse_move.disconnect(self._on_mouse_move)
+            if getattr(event.old, 'input_events', None) is not None:
+                event.old.input_events.mouse_move.disconnect(
+                    self._on_mouse_move
+                )
 
     def _on_mouse_over_canvas(self) -> None:
         if self.viewer.mouse_over_canvas:

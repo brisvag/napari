@@ -10,13 +10,12 @@ import numpy as np
 from packaging.version import parse as parse_version
 from qtpy.QtWidgets import QApplication
 from skimage.morphology import diamond, octahedron
-from vispy.app import MouseEvent
-
 import napari
 import napari.layers
 from napari.components.viewer_model import ViewerModel
 from napari.qt import QtViewer
 from napari.utils.colormaps import DirectLabelColormap
+from napari.utils.input_events import NapariMouseEvent
 
 from .utils import Skip
 
@@ -29,7 +28,7 @@ class QtViewerSingleLabelsSuite:
     data: np.ndarray
     viewer: napari.Viewer
     layer: napari.layers.Labels
-    event: MouseEvent
+    event: NapariMouseEvent
 
     def setup(self):
         _ = QApplication.instance() or QApplication([])
@@ -40,10 +39,14 @@ class QtViewerSingleLabelsSuite:
         self.layer.brush_size = 10
         self.layer.mode = 'paint'
         self.layer.selected_label = 3
-        self.event = MouseEvent(
+        press_event = NapariMouseEvent(
+            type='mouse_press', pos=np.array([505, 500])
+        )
+        self.event = NapariMouseEvent(
             type='mouse_move',
-            press_event=MouseEvent(type='mouse_press', pos=(505, 500)),
-            pos=(500, 500),
+            pos=np.array([500, 500]),
+            press_event=press_event,
+            buttons=(1,),
             view_direction=None,
         )
         if NAPARI_0_4_19:

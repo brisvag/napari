@@ -12,7 +12,7 @@ from napari.utils.key_bindings import (
 from napari.utils.translations import trans
 
 if TYPE_CHECKING:
-    from napari._vispy.mouse_event import NapariMouseEvent
+    from napari.utils.input_events import NapariMouseEvent
 
 
 def mouse_wheel_callbacks(obj, event):

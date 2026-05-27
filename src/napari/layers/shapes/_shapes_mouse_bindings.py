@@ -22,10 +22,11 @@ if TYPE_CHECKING:
     from collections.abc import Generator
 
     import numpy.typing as npt
-    from vispy.app.canvas import MouseEvent
 
-    from napari._vispy.mouse_event import NapariMouseEvent
+    from napari.utils.input_events import NapariMouseEvent
     from napari.layers.shapes.shapes import Shapes
+
+    MouseEvent = NapariMouseEvent
 
 
 def highlight(layer: Shapes, event: MouseEvent) -> None:

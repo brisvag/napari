@@ -14,8 +14,6 @@ from imageio import imread
 from pytestqt.qtbot import QtBot
 from qtpy.QtWidgets import QApplication, QMessageBox
 from scipy import ndimage as ndi
-from vispy.app import MouseEvent
-
 from napari._qt.qt_viewer import QtViewer
 from napari._tests.utils import (
     add_layer_by_type,
@@ -30,6 +28,7 @@ from napari.layers import Labels, Layer, Points
 from napari.settings import get_settings
 from napari.utils.colormaps import DirectLabelColormap, label_colormap
 from napari.utils.interactions import mouse_press_callbacks
+from napari.utils.input_events import NapariMouseEvent
 
 if typing.TYPE_CHECKING:
     from pathlib import Path
@@ -473,9 +472,9 @@ def test_process_mouse_event(
     """
     # make a mock mouse event
     new_pos = (25, 25)
-    mouse_event = MouseEvent(
+    mouse_event = NapariMouseEvent(
         type='mouse_press',
-        pos=new_pos,
+        pos=np.array(new_pos),
     )
     data = np.zeros((5, 20, 20, 20), dtype=int)
     data[1, 0:10, 0:10, 0:10] = 1
@@ -509,9 +508,9 @@ def test_process_mouse_event_2d_layer_3d_viewer(
 
     # make a mock mouse event
     new_pos = (5, 5)
-    mouse_event = MouseEvent(
+    mouse_event = NapariMouseEvent(
         type='mouse_press',
-        pos=new_pos,
+        pos=np.array(new_pos),
     )
     data = np.zeros((20, 20))
 
@@ -1223,8 +1222,6 @@ def test_viewer_drag_to_zoom(
     qt_viewer: QtViewer, viewer_model: ViewerModel, qtbot: QtBot
 ) -> None:
     """Test drag to zoom mouse binding."""
-    canvas = qt_viewer.canvas
-
     def zoom_callback(data_positions):
         """Mock zoom callback to check zoom box visibility."""
         assert len(data_positions) == 2, (
@@ -1244,8 +1241,8 @@ def test_viewer_drag_to_zoom(
     )
     qtbot.wait(10)
     # Simulate press to start zooming
-    canvas._scene_canvas.events.mouse_press(
-        pos=(0, 0), modifiers=('Alt',), button=0
+    qt_viewer._emit_mouse_event(
+        'mouse_press', pos=(0, 0), modifiers=('Alt',), button=0
     )
     qtbot.wait(10)
     assert viewer_model._zoom_box.visible is True, (
@@ -1253,13 +1250,8 @@ def test_viewer_drag_to_zoom(
     )
 
     # Simulate drag to zoom
-    canvas._scene_canvas.events.mouse_move(
-        pos=(100, 100),
-        modifiers=('Alt',),
-        button=0,
-        press_event=MouseEvent(
-            pos=(0, 0), modifiers=('Alt',), button=0, type='mouse_press'
-        ),
+    qt_viewer._emit_mouse_event(
+        'mouse_move', pos=(100, 100), modifiers=('Alt',)
     )
     qtbot.wait(10)
     assert viewer_model._zoom_box.visible is True, (
@@ -1270,8 +1262,8 @@ def test_viewer_drag_to_zoom(
     )
 
     # Simulate release to finish zooming
-    canvas._scene_canvas.events.mouse_release(
-        pos=(100, 100), modifiers=('Alt',), button=0
+    qt_viewer._emit_mouse_event(
+        'mouse_release', pos=(100, 100), modifiers=('Alt',), button=0
     )
     qtbot.wait(10)
     assert viewer_model._zoom_box.visible is False, (
@@ -1286,7 +1278,6 @@ def test_viewer_drag_to_zoom_with_cancel(
     qt_viewer: QtViewer, viewer_model: ViewerModel, qtbot: QtBot
 ) -> None:
     """Test drag to zoom mouse binding."""
-    canvas = qt_viewer.canvas
 
     zoom_area_mock = mock.Mock()
 
@@ -1301,8 +1292,8 @@ def test_viewer_drag_to_zoom_with_cancel(
     )
     qtbot.wait(10)
     # Simulate press to start zooming
-    canvas._scene_canvas.events.mouse_press(
-        pos=(0, 0), modifiers=('Alt',), button=0
+    qt_viewer._emit_mouse_event(
+        'mouse_press', pos=(0, 0), modifiers=('Alt',), button=0
     )
     qtbot.wait(10)
     assert viewer_model._zoom_box.visible is True, (
@@ -1310,14 +1301,7 @@ def test_viewer_drag_to_zoom_with_cancel(
     )
 
     # Simulate drag to zoom BUT remove modifiers to cancel
-    canvas._scene_canvas.events.mouse_move(
-        pos=(100, 100),
-        modifiers=(),
-        button=0,
-        press_event=MouseEvent(
-            pos=(0, 0), modifiers=('Alt',), button=0, type='mouse_press'
-        ),
-    )
+    qt_viewer._emit_mouse_event('mouse_move', pos=(100, 100), modifiers=())
     qtbot.wait(10)
     assert viewer_model._zoom_box.visible is False, (
         'Zoom box should remain visible during drag'
@@ -1338,8 +1322,6 @@ def test_viewer_drag_to_zoom_3d_data(
     ZoomOverlay.zoom_area only accepts 2-tuples, so the drag_to_zoom binding
     must slice to the displayed (last 2) coordinates before assigning.
     """
-    canvas = qt_viewer.canvas
-
     zoom_area_mock = mock.Mock()
     viewer_model._zoom_box.events.zoom_area.connect(zoom_area_mock)
 
@@ -1350,25 +1332,20 @@ def test_viewer_drag_to_zoom_3d_data(
     assert viewer_model.dims.ndisplay == 2
 
     qtbot.wait(10)
-    canvas._scene_canvas.events.mouse_press(
-        pos=(0, 0), modifiers=('Alt',), button=0
+    qt_viewer._emit_mouse_event(
+        'mouse_press', pos=(0, 0), modifiers=('Alt',), button=0
     )
     qtbot.wait(10)
     assert viewer_model._zoom_box.visible is True
 
-    canvas._scene_canvas.events.mouse_move(
-        pos=(100, 100),
-        modifiers=('Alt',),
-        button=0,
-        press_event=MouseEvent(
-            pos=(0, 0), modifiers=('Alt',), button=0, type='mouse_press'
-        ),
+    qt_viewer._emit_mouse_event(
+        'mouse_move', pos=(100, 100), modifiers=('Alt',)
     )
     qtbot.wait(10)
 
     # Release — this previously raised a pydantic ValidationError
-    canvas._scene_canvas.events.mouse_release(
-        pos=(100, 100), modifiers=('Alt',), button=0
+    qt_viewer._emit_mouse_event(
+        'mouse_release', pos=(100, 100), modifiers=('Alt',), button=0
     )
     qtbot.wait(10)
 

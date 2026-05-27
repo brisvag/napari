@@ -32,7 +32,10 @@ from napari._qt.widgets.qt_viewer_buttons import (
     QtViewerButtons,
 )
 from napari._qt.widgets.qt_viewer_dock_widget import QtViewerDockWidget
-from napari._qt.qt_input_dispatcher import qt_key_event_to_napari
+from napari._qt.qt_input_dispatcher import (
+    QtInputDispatcher,
+    qt_key_event_to_napari,
+)
 from napari._vispy.utils.qt_font import QtFontManager
 from napari.components.camera import Camera
 from napari.components.layerlist import LayerList
@@ -169,9 +172,15 @@ class QtViewer(QSplitter):
             parent=self,
             font_manager=self._font_manager,
             font_family=self._overlay_font,
-            key_map_handler=self._key_map_handler,
             size=self.viewer._canvas_size,
             autoswap=get_settings().experimental.autoswap_buffers,  # see #5734
+            input_events=self._input_events,
+        )
+        self._qt_input_dispatcher = QtInputDispatcher(
+            self.canvas.native,
+            self._input_events,
+            on_enter=self._enter_canvas,
+            on_leave=self._leave_canvas,
         )
         self._input_events.key_press.connect(self._on_key_press)
         self._input_events.key_release.connect(self._on_key_release)
@@ -1161,6 +1170,11 @@ class QtViewer(QSplitter):
                 return
         self.canvas._scene_canvas._backend._keyEvent(
             getattr(self.canvas._scene_canvas.events, event_type), event
+        )
+
+    def _emit_mouse_event(self, event_type: str, **kwargs):
+        return self._qt_input_dispatcher.emit_mouse_event(
+            event_type, **kwargs
         )
 
     def _on_key_press(self, event) -> None:
