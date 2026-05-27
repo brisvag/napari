@@ -11,7 +11,6 @@ from weakref import WeakSet
 
 import numpy as np
 from OpenGL.error import GLError
-from superqt.utils import qthrottled
 from vispy.scene import Grid, SceneCanvas as SceneCanvas_, ViewBox, Widget
 
 from napari._vispy.camera import VispyCamera
@@ -21,18 +20,10 @@ from napari._vispy.utils.qt_font import QtFontManager
 from napari._vispy.utils.visual import create_vispy_overlay
 from napari.components._viewer_constants import CanvasPosition
 from napari.components.overlays import CanvasOverlay
-from napari.utils._proxies import ReadOnlyWrapper
 from napari.utils.colormaps.standardize_color import transform_color
 from napari.utils.events import disconnect_events
 from napari.utils.events.event import Event
-from napari.utils.interactions import (
-    mouse_double_click_callbacks,
-    mouse_move_callbacks,
-    mouse_press_callbacks,
-    mouse_release_callbacks,
-    mouse_wheel_callbacks,
-)
-from napari.utils.input_events import InputEventEmitter, NapariMouseEvent
+from napari.utils.input_events import InputEventEmitter
 from napari.utils.notifications import show_warning
 from napari.utils.theme import get_theme
 
@@ -208,15 +199,7 @@ class VispyCanvas:
 
         self._input_events = input_events or InputEventEmitter()
         self._scene_canvas.input_events = self._input_events
-        self._mouse_move_handler = qthrottled(self._on_mouse_move, timeout=5)
         self._scene_canvas.events.draw.connect(self.enable_dims_play)
-        self._input_events.mouse_double_click.connect(
-            self._on_mouse_double_click
-        )
-        self._input_events.mouse_move.connect(self._mouse_move_handler)
-        self._input_events.mouse_press.connect(self._on_mouse_press)
-        self._input_events.mouse_release.connect(self._on_mouse_release)
-        self._input_events.mouse_wheel.connect(self._on_mouse_wheel)
         self._scene_canvas.events.resize.connect(self.on_resize)
         self._scene_canvas.events.draw.connect(self.on_draw, position='last')
         self.viewer.cursor.events.style.connect(self._on_cursor)
@@ -322,13 +305,6 @@ class VispyCanvas:
         disconnect_events(self.viewer.camera.events, self)
         disconnect_events(self.viewer.cursor.events, self)
         disconnect_events(self._scene_canvas.events, self)
-        self._input_events.mouse_double_click.disconnect(
-            self._on_mouse_double_click
-        )
-        self._input_events.mouse_move.disconnect(self._mouse_move_handler)
-        self._input_events.mouse_press.disconnect(self._on_mouse_press)
-        self._input_events.mouse_release.disconnect(self._on_mouse_release)
-        self._input_events.mouse_wheel.disconnect(self._on_mouse_wheel)
 
     @property
     def bgcolor(self) -> str:
@@ -436,6 +412,19 @@ class VispyCanvas:
         self.viewer.camera.zoom = self.viewer.camera.zoom * np.min(ratio)
         self.viewer.camera.center = box_center_world
 
+    def map_canvas_to_world(
+        self, position: tuple[int, ...], view: ViewBox
+    ) -> tuple[float, float]:
+        return self._map_canvas2world(position, view)
+
+    def get_viewbox_at(self, position):
+        return self._get_viewbox_at(position)
+
+    def calculate_view_direction(
+        self, event_pos: tuple[float, float]
+    ) -> npt.NDArray[np.float64] | None:
+        return self._calculate_view_direction(event_pos)
+
     def _map_canvas2world(
         self,
         position: tuple[int, ...],
@@ -501,162 +490,6 @@ class VispyCanvas:
                 return viewbox, grid_coords
 
         return None, None
-
-    def _process_mouse_event(
-        self, mouse_callbacks: Callable, event: NapariMouseEvent
-    ) -> None:
-        """Add properties to the mouse event before passing the event to the
-        napari events system. Called whenever the mouse moves or is clicked.
-        As such, care should be taken to reduce the overhead in this function.
-        In future work, we should consider limiting the frequency at which
-        it is called.
-
-        This method adds following:
-            position: the position of the click in world coordinates.
-            view_direction: a unit vector giving the direction of the camera in
-                world coordinates.
-            up_direction: a unit vector giving the direction of the camera that is
-                up in world coordinates.
-            dims_displayed: a list of the dimensions currently being displayed
-                in the viewer. This comes from viewer.dims.displayed.
-            dims_point: the indices for the data in view in world coordinates.
-                This comes from viewer.dims.point
-
-        Parameters
-        ----------
-        mouse_callbacks : Callable
-            Mouse callbacks function.
-        event : napari.utils.input_events.NapariMouseEvent
-            The napari mouse event that triggered this method.
-
-        Returns
-        -------
-        None
-        """
-        if event.pos is None:
-            return
-
-        # ensure that events which began in a specific viewbox continue to be
-        # calculated based on that viewbox's coordinates
-        if event.press_event is not None:
-            viewbox, grid_coords = self._get_viewbox_at(event.press_event.pos)
-        else:
-            viewbox, grid_coords = self._get_viewbox_at(event.pos)
-
-        self.viewer.cursor.viewbox = grid_coords
-
-        if viewbox is None:
-            # this means we're in an empty viewbox, so do nothing
-            event.handled = True
-            return
-
-        napari_event = event
-        napari_event.view_direction = self._calculate_view_direction(event.pos)
-        napari_event.up_direction = self.viewer.camera.calculate_nd_up_direction(
-            self.viewer.dims.ndim, self.viewer.dims.displayed
-        )
-        napari_event.camera_zoom = self.viewer.camera.zoom
-        napari_event.position = self._map_canvas2world(event.pos, viewbox)
-        napari_event.dims_displayed = list(self.viewer.dims.displayed)
-        napari_event.dims_point = list(self.viewer.dims.point)
-        napari_event.viewbox = grid_coords
-
-        # Update the cursor position
-        self.viewer.cursor._view_direction = napari_event.view_direction
-        self.viewer.cursor.position = napari_event.position
-
-        # Put a read only wrapper on the event
-        read_only_event = ReadOnlyWrapper(
-            napari_event, exceptions=('handled',)
-        )
-        mouse_callbacks(self.viewer, read_only_event)
-
-        layer = self.viewer.layers.selection.active
-        if layer is not None:
-            mouse_callbacks(layer, read_only_event)
-
-        event.handled = napari_event.handled
-
-    def _on_mouse_double_click(self, event: NapariMouseEvent) -> None:
-        """Called whenever a mouse double-click happen on the canvas
-
-        Parameters
-        ----------
-        event : napari.utils.input_events.NapariMouseEvent
-            The napari mouse event that triggered this method. The `event.type` will always be `mouse_double_click`
-
-        Returns
-        -------
-        None
-
-        Notes
-        -----
-
-        Note that this triggers in addition to the usual mouse press and mouse release.
-        Therefore a double click from the user will likely triggers the following event in sequence:
-
-             - mouse_press
-             - mouse_release
-             - mouse_double_click
-             - mouse_release
-        """
-        self._process_mouse_event(mouse_double_click_callbacks, event)
-
-    def _on_mouse_move(self, event: NapariMouseEvent) -> None:
-        """Called whenever mouse moves over canvas.
-
-        Parameters
-        ----------
-        event : napari.utils.input_events.NapariMouseEvent
-            The napari event that triggered this method.
-
-        Returns
-        -------
-        None
-        """
-        self._process_mouse_event(mouse_move_callbacks, event)
-
-    def _on_mouse_press(self, event: NapariMouseEvent) -> None:
-        """Called whenever mouse pressed in canvas.
-
-        Parameters
-        ----------
-        event : napari.utils.input_events.NapariMouseEvent
-            The napari mouse event that triggered this method.
-
-        Returns
-        -------
-        None
-        """
-        self._process_mouse_event(mouse_press_callbacks, event)
-
-    def _on_mouse_release(self, event: NapariMouseEvent) -> None:
-        """Called whenever mouse released in canvas.
-
-        Parameters
-        ----------
-        event : napari.utils.input_events.NapariMouseEvent
-            The napari mouse event that triggered this method.
-
-        Returns
-        -------
-        None
-        """
-        self._process_mouse_event(mouse_release_callbacks, event)
-
-    def _on_mouse_wheel(self, event: NapariMouseEvent) -> None:
-        """Called whenever mouse wheel activated in canvas.
-
-        Parameters
-        ----------
-        event : napari.utils.input_events.NapariMouseEvent
-            The napari mouse event that triggered this method.
-
-        Returns
-        -------
-        None
-        """
-        self._process_mouse_event(mouse_wheel_callbacks, event)
 
     @property
     def _viewbox_corners_in_world(self) -> npt.NDArray:

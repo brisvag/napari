@@ -25,6 +25,11 @@ from napari._qt.containers import QtLayerList
 from napari._qt.dialogs.qt_reader_dialog import handle_gui_reading
 from napari._qt.dialogs.screenshot_dialog import ScreenshotDialog
 from napari._qt.perf.qt_performance import QtPerformance
+from napari._qt.qt_input_dispatcher import (
+    QtInputDispatcher,
+    QtMouseEventHandler,
+    qt_key_event_to_napari,
+)
 from napari._qt.utils import QImg2array
 from napari._qt.widgets.qt_dims import QtDims
 from napari._qt.widgets.qt_viewer_buttons import (
@@ -32,10 +37,6 @@ from napari._qt.widgets.qt_viewer_buttons import (
     QtViewerButtons,
 )
 from napari._qt.widgets.qt_viewer_dock_widget import QtViewerDockWidget
-from napari._qt.qt_input_dispatcher import (
-    QtInputDispatcher,
-    qt_key_event_to_napari,
-)
 from napari._vispy.utils.qt_font import QtFontManager
 from napari.components.camera import Camera
 from napari.components.layerlist import LayerList
@@ -53,13 +54,13 @@ from napari.utils.history import (
     update_open_history,
     update_save_history,
 )
+from napari.utils.input_events import InputEventEmitter
 from napari.utils.io import imsave
 from napari.utils.key_bindings import KeymapHandler
 from napari.utils.misc import in_ipython, in_jupyter
 from napari.utils.naming import CallerFrame
 from napari.utils.notifications import show_info
 from napari.utils.translations import trans
-from napari.utils.input_events import InputEventEmitter
 
 from napari._vispy import VispyCanvas, create_vispy_layer  # isort:skip
 
@@ -182,6 +183,8 @@ class QtViewer(QSplitter):
             on_enter=self._enter_canvas,
             on_leave=self._leave_canvas,
         )
+        self._mouse_event_handler = QtMouseEventHandler(self.viewer, self.canvas)
+        self._mouse_event_handler.connect(self._input_events)
         self._input_events.key_press.connect(self._on_key_press)
         self._input_events.key_release.connect(self._on_key_release)
 
@@ -1308,6 +1311,8 @@ class QtViewer(QSplitter):
         if self._layers is not None:
             # do not create layerlist if it does not exist yet.
             self.layers.close()
+
+        self._mouse_event_handler.disconnect(self._input_events)
 
         # if the viewer.QtDims object is playing an axis, we need to terminate
         # the AnimationThread before close, otherwise it will cause a segFault
