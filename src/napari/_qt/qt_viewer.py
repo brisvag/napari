@@ -32,6 +32,7 @@ from napari._qt.widgets.qt_viewer_buttons import (
     QtViewerButtons,
 )
 from napari._qt.widgets.qt_viewer_dock_widget import QtViewerDockWidget
+from napari._qt.qt_input_dispatcher import qt_key_event_to_napari
 from napari._vispy.utils.qt_font import QtFontManager
 from napari.components.camera import Camera
 from napari.components.layerlist import LayerList
@@ -55,6 +56,7 @@ from napari.utils.misc import in_ipython, in_jupyter
 from napari.utils.naming import CallerFrame
 from napari.utils.notifications import show_info
 from napari.utils.translations import trans
+from napari.utils.input_events import InputEventEmitter
 
 from napari._vispy import VispyCanvas, create_vispy_layer  # isort:skip
 
@@ -149,6 +151,7 @@ class QtViewer(QSplitter):
         self._viewerButtons = None
         self._key_map_handler = KeymapHandler()
         self._key_map_handler.keymap_providers = [self.viewer]
+        self._input_events = InputEventEmitter()
         self._console_backlog = []
         self._console = None
 
@@ -170,6 +173,8 @@ class QtViewer(QSplitter):
             size=self.viewer._canvas_size,
             autoswap=get_settings().experimental.autoswap_buffers,  # see #5734
         )
+        self._input_events.key_press.connect(self._on_key_press)
+        self._input_events.key_release.connect(self._on_key_release)
 
         main_widget = QWidget()
         main_layout = QVBoxLayout()
@@ -1131,9 +1136,7 @@ class QtViewer(QSplitter):
         event : qtpy.QtCore.QEvent
             Event from the Qt context.
         """
-        self.canvas._scene_canvas._backend._keyEvent(
-            self.canvas._scene_canvas.events.key_press, event
-        )
+        self._handle_qt_key_event(event, 'key_press')
         event.accept()
 
     def keyReleaseEvent(self, event):
@@ -1144,10 +1147,35 @@ class QtViewer(QSplitter):
         event : qtpy.QtCore.QEvent
             Event from the Qt context.
         """
-        self.canvas._scene_canvas._backend._keyEvent(
-            self.canvas._scene_canvas.events.key_release, event
-        )
+        self._handle_qt_key_event(event, 'key_release')
         event.accept()
+
+    def _handle_qt_key_event(self, event, event_type: str) -> None:
+        napari_event = qt_key_event_to_napari(event, event_type)
+        if napari_event is not None:
+            if event_type == 'key_press':
+                self._input_events.key_press.emit(napari_event)
+            else:
+                self._input_events.key_release.emit(napari_event)
+            if napari_event.handled:
+                return
+        self.canvas._scene_canvas._backend._keyEvent(
+            getattr(self.canvas._scene_canvas.events, event_type), event
+        )
+
+    def _on_key_press(self, event) -> None:
+        if event.key is None:
+            return
+        event.handled = self._key_map_handler.handle_key_press(
+            event.key, is_auto_repeat=event.is_auto_repeat
+        )
+
+    def _on_key_release(self, event) -> None:
+        if event.key is None:
+            return
+        event.handled = self._key_map_handler.handle_key_release(
+            event.key, is_auto_repeat=event.is_auto_repeat
+        )
 
     def dragEnterEvent(self, event):
         """Ignore event if not dragging & dropping a file or URL to open.

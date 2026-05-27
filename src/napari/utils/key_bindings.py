@@ -475,6 +475,32 @@ class KeymapHandler:
             pass
         return True
 
+    def handle_key_press(
+        self, key_bind: KeyBindingLike, *, is_auto_repeat: bool
+    ) -> bool:
+        """Handle a key press for a given keybinding."""
+        from napari.utils.action_manager import action_manager
+
+        key_bind = coerce_keybinding(key_bind)
+        repeatables = {
+            *action_manager._get_repeatable_shortcuts(self.keymap_chain),
+            'Up',
+            'Down',
+            'Left',
+            'Right',
+        }
+        if is_auto_repeat and key_bind not in repeatables:
+            return False
+        return self.press_key(key_bind)
+
+    def handle_key_release(
+        self, key_bind: KeyBindingLike, *, is_auto_repeat: bool
+    ) -> bool:
+        """Handle a key release for a given keybinding."""
+        if is_auto_repeat:
+            return False
+        return self.release_key(key_bind)
+
     def on_key_press(self, event):
         """Called whenever key pressed in canvas.
 
@@ -483,33 +509,17 @@ class KeymapHandler:
         event : vispy.util.event.Event
             The vispy key press event that triggered this method.
         """
-        from napari.utils.action_manager import action_manager
-
         if event.key is None:
             # TODO determine when None key could be sent.
             return
 
         kb = _vispy2appmodel(event)
-
-        repeatables = {
-            *action_manager._get_repeatable_shortcuts(self.keymap_chain),
-            'Up',
-            'Down',
-            'Left',
-            'Right',
-        }
-
-        if (
-            event.native is not None
-            and event.native.isAutoRepeat()
-            and kb not in repeatables
-        ) or event.key is None:
-            # pass if no key is present or if the shortcut combo is held down,
-            # unless the combo being held down is one of the autorepeatables or
-            # one of the navigation keys (helps with scrolling).
-            return
-
-        event.handled = self.press_key(kb)
+        event.handled = self.handle_key_press(
+            kb,
+            is_auto_repeat=(
+                event.native is not None and event.native.isAutoRepeat()
+            ),
+        )
 
     def on_key_release(self, event):
         """Called whenever key released in canvas.
@@ -519,10 +529,12 @@ class KeymapHandler:
         event : vispy.util.event.Event
             The vispy key release event that triggered this method.
         """
-        if event.key is None or (
-            # on linux press down is treated as multiple press and release
-            event.native is not None and event.native.isAutoRepeat()
-        ):
+        if event.key is None:
             return
         kb = _vispy2appmodel(event)
-        event.handled = self.release_key(kb)
+        event.handled = self.handle_key_release(
+            kb,
+            is_auto_repeat=(
+                event.native is not None and event.native.isAutoRepeat()
+            ),
+        )
