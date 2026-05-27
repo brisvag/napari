@@ -14,6 +14,7 @@ from imageio import imread
 from pytestqt.qtbot import QtBot
 from qtpy.QtWidgets import QApplication, QMessageBox
 from scipy import ndimage as ndi
+
 from napari._qt.qt_viewer import QtViewer
 from napari._tests.utils import (
     add_layer_by_type,
@@ -27,8 +28,8 @@ from napari.components.viewer_model import ViewerModel
 from napari.layers import Labels, Layer, Points
 from napari.settings import get_settings
 from napari.utils.colormaps import DirectLabelColormap, label_colormap
-from napari.utils.interactions import mouse_press_callbacks
 from napari.utils.input_events import NapariMouseEvent
+from napari.utils.interactions import mouse_press_callbacks
 
 if typing.TYPE_CHECKING:
     from pathlib import Path
@@ -495,7 +496,9 @@ def test_process_mouse_event(
         np.testing.assert_almost_equal(expected_position, list(event.position))
 
     viewer_model.dims.ndisplay = 3
-    qt_viewer.canvas._process_mouse_event(mouse_press_callbacks, mouse_event)
+    qt_viewer._mouse_event_handler._process_mouse_event(
+        mouse_press_callbacks, mouse_event
+    )
 
 
 def test_process_mouse_event_2d_layer_3d_viewer(
@@ -524,10 +527,14 @@ def test_process_mouse_event_2d_layer_3d_viewer(
         np.testing.assert_almost_equal(expected_position, list(event.position))
 
     assert viewer_model.dims.ndisplay == 2
-    qt_viewer.canvas._process_mouse_event(mouse_press_callbacks, mouse_event)
+    qt_viewer._mouse_event_handler._process_mouse_event(
+        mouse_press_callbacks, mouse_event
+    )
 
     viewer_model.dims.ndisplay = 3
-    qt_viewer.canvas._process_mouse_event(mouse_press_callbacks, mouse_event)
+    qt_viewer._mouse_event_handler._process_mouse_event(
+        mouse_press_callbacks, mouse_event
+    )
 
 
 @pytest.mark.usefixtures(
