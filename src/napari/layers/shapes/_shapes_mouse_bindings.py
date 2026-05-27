@@ -23,8 +23,8 @@ if TYPE_CHECKING:
 
     import numpy.typing as npt
 
-    from napari.utils.input_events import NapariMouseEvent
     from napari.layers.shapes.shapes import Shapes
+    from napari.utils.input_events import NapariMouseEvent
 
     MouseEvent = NapariMouseEvent
 

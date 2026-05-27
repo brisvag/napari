@@ -10,6 +10,7 @@ import numpy as np
 from packaging.version import parse as parse_version
 from qtpy.QtWidgets import QApplication
 from skimage.morphology import diamond, octahedron
+
 import napari
 import napari.layers
 from napari.components.viewer_model import ViewerModel
