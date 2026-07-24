@@ -1,10 +1,5 @@
 import numpy as np
 import pytest
-
-from napari._vispy.overlays.labels_polygon import VispyLabelsPolygonOverlay
-from napari._vispy.utils.qt_font import FontInfo
-from napari.components import ViewerModel
-from napari.components.overlays import LabelsPolygonOverlay
 from napari.layers.labels._labels_key_bindings import complete_polygon
 from napari.utils.interactions import (
     mouse_move_callbacks,
@@ -12,21 +7,26 @@ from napari.utils.interactions import (
 )
 
 
-@pytest.mark.usefixtures('qapp')
-def test_vispy_labels_polygon_overlay():
-    viewer = ViewerModel()
+def _get_polygon_visual(viewer, layer):
+    from napari._vispy.overlays.labels_polygon import VispyLabelsPolygonOverlay
 
-    labels_polygon = LabelsPolygonOverlay()
+    for overlay_visual in viewer.window._qt_viewer.canvas._layer_overlay_to_visual.get(
+        layer, {}
+    ).values():
+        if isinstance(overlay_visual, VispyLabelsPolygonOverlay):
+            return overlay_visual
+    return None
+
+
+@pytest.mark.usefixtures('qapp')
+def test_vispy_labels_polygon_overlay(make_napari_viewer):
+    viewer = make_napari_viewer()
 
     data = np.zeros((50, 50), dtype=int)
     layer = viewer.add_labels(data, opacity=0.5)
-
-    vispy_labels_polygon = VispyLabelsPolygonOverlay(
-        layer=layer,
-        font_info=FontInfo(),
-        viewer=viewer,
-        overlay=labels_polygon,
-    )
+    labels_polygon = layer._overlays['polygon']
+    vispy_labels_polygon = _get_polygon_visual(viewer, layer)
+    assert vispy_labels_polygon is not None
 
     assert vispy_labels_polygon._polygon.color.alpha == 0.5
 
@@ -175,18 +175,7 @@ def test_labels_polygon_with_downsampling(
     layer.selected_label = 1
 
     polygon_overlay = layer._overlays['polygon']
-    from napari._vispy.overlays.labels_polygon import VispyLabelsPolygonOverlay
-
-    vispy_polygon_overlay = None
-    for (
-        overlay_visual
-    ) in viewer.window._qt_viewer.canvas._layer_overlay_to_visual.get(
-        layer, {}
-    ).values():
-        if isinstance(overlay_visual, VispyLabelsPolygonOverlay):
-            vispy_polygon_overlay = overlay_visual
-            break
-
+    vispy_polygon_overlay = _get_polygon_visual(viewer, layer)
     assert vispy_polygon_overlay is not None, (
         'Could not find polygon overlay visual'
     )
