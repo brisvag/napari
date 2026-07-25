@@ -1,9 +1,8 @@
 import copy
 import warnings
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
-import pandas as pd
 
 from napari.layers.base import Layer, _LayerSlicingState
 from napari.layers.intensity_mixin import IntensityVisualizationMixin
@@ -23,7 +22,9 @@ from napari.utils.colormaps import AVAILABLE_COLORMAPS
 from napari.utils.events import Event
 from napari.utils.events.event_utils import connect_no_arg
 from napari.utils.geometry import find_nearest_triangle_intersection
-from napari.utils.translations import trans
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 
 # Mixin must come before Layer
@@ -210,6 +211,7 @@ class Surface(IntensityVisualizationMixin, Layer):
     """
 
     _colormaps = AVAILABLE_COLORMAPS
+    _slicing_state: '_SurfaceSlicingState'
 
     def __init__(
         self,
@@ -279,11 +281,7 @@ class Surface(IntensityVisualizationMixin, Layer):
         # assign mesh data and establish default behavior
         if len(data) not in (2, 3):
             raise ValueError(
-                trans._(
-                    'Surface data tuple must be 2 or 3, specifying vertices, faces, and optionally vertex values, instead got length {length}.',
-                    deferred=True,
-                    length=len(data),
-                )
+                f'Surface data tuple must be 2 or 3, specifying vertices, faces, and optionally vertex values, instead got length {len(data)}.'
             )
         self._vertices = data[0]
         self._faces = data[1]
@@ -364,11 +362,7 @@ class Surface(IntensityVisualizationMixin, Layer):
     def data(self, data):
         if len(data) not in (2, 3):
             raise ValueError(
-                trans._(
-                    'Surface data tuple must be 2 or 3, specifying vertices, faces, and optionally vertex values, instead got length {data_length}.',
-                    deferred=True,
-                    data_length=len(data),
-                )
+                f'Surface data tuple must be 2 or 3, specifying vertices, faces, and optionally vertex values, instead got length {len(data)}.'
             )
         self._vertices = data[0]
         self._faces = data[1]
@@ -475,15 +469,17 @@ class Surface(IntensityVisualizationMixin, Layer):
             # the number of additional vertex value dimensions and the
             # dimensionality of the vertices themselves
             if self.vertex_values.ndim > 1:
-                mins = [0] * (self.vertex_values.ndim - 1) + list(mins)
-                maxs = [n - 1 for n in self.vertex_values.shape[:-1]] + list(
-                    maxs
+                mins = np.array(
+                    [0] * (self.vertex_values.ndim - 1) + list(mins)
+                )
+                maxs = np.array(
+                    [n - 1 for n in self.vertex_values.shape[:-1]] + list(maxs)
                 )
             extrema = np.vstack([mins, maxs])
         return extrema
 
     @property
-    def features(self) -> pd.DataFrame:
+    def features(self) -> 'pd.DataFrame':
         """Dataframe-like features table.
 
         It is an implementation detail that this is a `pandas.DataFrame`. In the future,
@@ -503,13 +499,13 @@ class Surface(IntensityVisualizationMixin, Layer):
     @features.setter
     def features(
         self,
-        features: dict[str, np.ndarray] | pd.DataFrame,
+        features: 'dict[str, np.ndarray] | pd.DataFrame',
     ) -> None:
         self._feature_table.set_values(features, num_data=len(self.data[0]))
         self.events.features()
 
     @property
-    def feature_defaults(self) -> pd.DataFrame:
+    def feature_defaults(self) -> 'pd.DataFrame':
         """Dataframe-like with one row of feature default values.
 
         See `features` for more details on the type of this property.
@@ -518,7 +514,7 @@ class Surface(IntensityVisualizationMixin, Layer):
 
     @feature_defaults.setter
     def feature_defaults(
-        self, defaults: dict[str, Any] | pd.DataFrame
+        self, defaults: 'dict[str, Any] | pd.DataFrame'
     ) -> None:
         self._feature_table.set_defaults(defaults)
         self.events.feature_defaults()
@@ -565,7 +561,7 @@ class Surface(IntensityVisualizationMixin, Layer):
             )
         else:
             if isinstance(normals, SurfaceNormals):
-                normals = {k: dict(v) for k, v in normals.dict().items()}
+                normals = {k: dict(v) for k, v in normals.model_dump().items()}
             # ignore modes, they are unmutable cause errors
             for norm_type in ('face', 'vertex'):
                 normals.get(norm_type, {}).pop('mode', None)
@@ -616,15 +612,15 @@ class Surface(IntensityVisualizationMixin, Layer):
         state = self._get_base_state()
         state.update(
             {
-                'colormap': self.colormap.dict(),
+                'colormap': self.colormap.model_dump(),
                 'contrast_limits': self.contrast_limits,
                 'gamma': self.gamma,
                 'shading': self.shading,
                 'data': self.data,
                 'features': self.features,
                 'feature_defaults': self.feature_defaults,
-                'wireframe': self.wireframe.dict(),
-                'normals': self.normals.dict(),
+                'wireframe': self.wireframe.model_dump(),
+                'normals': self.normals.model_dump(),
                 'texture': self.texture,
                 'texcoords': self.texcoords,
                 'vertex_colors': self.vertex_colors,
@@ -789,13 +785,10 @@ class _SurfaceSlicingState(_LayerSlicingState):
             data = data[data_indices]
             if data.ndim > dims:
                 warnings.warn(
-                    trans._(
-                        'Assigning multiple data per vertex after slicing '
-                        'is not allowed. All dimensions corresponding to '
-                        'vertex data must be non-displayed dimensions. Data '
-                        'may not be visible.',
-                        deferred=True,
-                    ),
+                    'Assigning multiple data per vertex after slicing '
+                    'is not allowed. All dimensions corresponding to '
+                    'vertex data must be non-displayed dimensions. Data '
+                    'may not be visible.',
                     category=UserWarning,
                     stacklevel=2,
                 )

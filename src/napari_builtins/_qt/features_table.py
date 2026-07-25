@@ -769,7 +769,6 @@ class FeaturesTable(QWidget):
         self.layout().addWidget(self.join_toggle)
         self.layout().addWidget(self.save)
         self.layout().addWidget(self.table)
-        self.layout().addStretch()
 
         self.toggle.toggled.connect(self._on_editable_change)
         self.join_toggle.toggled.connect(self._on_join_change)
@@ -1006,8 +1005,6 @@ class FeaturesTable(QWidget):
             return
 
         df = self.table.model().sourceModel().df
-        if df.empty:
-            return
 
         # Handle single layer case (no 'Layer' column)
         if len(self._selected_layers) == 1:

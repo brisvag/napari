@@ -1,13 +1,13 @@
+from __future__ import annotations
+
 import warnings
 from collections.abc import Callable, Collection, Iterable, Sized
 from contextlib import contextmanager
 from copy import copy, deepcopy
-from itertools import cycle
-from typing import Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import numpy as np
 import numpy.typing as npt
-import pandas as pd
 from psygnal.containers import Selection
 from vispy.color import get_color_names
 
@@ -68,6 +68,7 @@ from napari.layers.utils.text_manager import TextManager
 from napari.settings import get_settings
 from napari.types import LayerDataType
 from napari.utils.colormaps import Colormap, ValidColormapArg, ensure_colormap
+from napari.utils.colormaps.categorical_colormap_utils import ColorCycle
 from napari.utils.colormaps.colormap_utils import ColorType
 from napari.utils.colormaps.standardize_color import (
     hex_to_name,
@@ -78,7 +79,11 @@ from napari.utils.events import Event
 from napari.utils.events.custom_types import Array
 from napari.utils.misc import ensure_iterable
 from napari.utils.notifications import show_warning
-from napari.utils.translations import trans
+
+if TYPE_CHECKING:
+    from itertools import cycle
+
+    import pandas as pd
 
 DEFAULT_COLOR_CYCLE = np.array([[1, 0, 1, 1], [0, 1, 0, 1]])
 
@@ -356,8 +361,6 @@ class Shapes(Layer):
     _edge_color_property: str
     _face_color_cycle: npt.NDArray
     _edge_color_cycle: npt.NDArray
-    _face_color_cycle_values: npt.NDArray
-    _edge_color_cycle_values: npt.NDArray
     _face_color_mode: str
     _edge_color_mode: str
 
@@ -365,7 +368,7 @@ class Shapes(Layer):
     # in the thumbnail
     _max_shapes_thumbnail = 100
 
-    _drag_modes: ClassVar[dict[Mode, Callable[['Shapes', Event], Any]]] = {
+    _drag_modes: ClassVar[dict[Mode, Callable[[Shapes, Event], Any]]] = {
         Mode.PAN_ZOOM: no_op,
         Mode.TRANSFORM: transform_with_box,
         Mode.SELECT: select,
@@ -381,7 +384,7 @@ class Shapes(Layer):
         Mode.ADD_POLYGON_LASSO: add_path_polygon_lasso,
     }
 
-    _move_modes: ClassVar[dict[Mode, Callable[['Shapes', Event], Any]]] = {
+    _move_modes: ClassVar[dict[Mode, Callable[[Shapes, Event], Any]]] = {
         Mode.PAN_ZOOM: no_op,
         Mode.TRANSFORM: highlight_box_handles,
         Mode.SELECT: highlight,
@@ -398,7 +401,7 @@ class Shapes(Layer):
     }
 
     _double_click_modes: ClassVar[
-        dict[Mode, Callable[['Shapes', Event], Any]]
+        dict[Mode, Callable[[Shapes, Event], Any]]
     ] = {
         Mode.PAN_ZOOM: no_op,
         Mode.TRANSFORM: no_op,
@@ -481,12 +484,7 @@ class Shapes(Layer):
             data, shape_type = extract_shape_type(data, shape_type)
             data_ndim = get_shape_ndim(data)
             if ndim is not None and ndim != data_ndim:
-                raise ValueError(
-                    trans._(
-                        'Shape dimensions must be equal to ndim',
-                        deferred=True,
-                    )
-                )
+                raise ValueError('Shape dimensions must be equal to ndim')
             ndim = data_ndim
 
         super().__init__(
@@ -805,10 +803,7 @@ class Shapes(Layer):
         ):
             self._face_color_property = ''
             warnings.warn(
-                trans._(
-                    'property used for face_color dropped',
-                    deferred=True,
-                ),
+                'property used for face_color dropped',
                 RuntimeWarning,
             )
 
@@ -817,10 +812,7 @@ class Shapes(Layer):
         ):
             self._edge_color_property = ''
             warnings.warn(
-                trans._(
-                    'property used for edge_color dropped',
-                    deferred=True,
-                ),
+                'property used for edge_color dropped',
                 RuntimeWarning,
             )
 
@@ -1004,7 +996,7 @@ class Shapes(Layer):
 
         Can be a list of colors defined by name, RGB or RGBA
         """
-        return self._edge_color_cycle_values
+        return self._edge_color_cycle.values
 
     @edge_color_cycle.setter
     def edge_color_cycle(self, edge_color_cycle: list | np.ndarray):
@@ -1070,7 +1062,7 @@ class Shapes(Layer):
         """Union[np.ndarray, cycle]:  Color cycle for face_color
         Can be a list of colors defined by name, RGB or RGBA
         """
-        return self._face_color_cycle_values
+        return self._face_color_cycle.values
 
     @face_color_cycle.setter
     def face_color_cycle(self, face_color_cycle: np.ndarray | cycle):
@@ -1147,20 +1139,11 @@ class Shapes(Layer):
                         new_color_property,
                     )
                     warnings.warn(
-                        trans._(
-                            '_{attribute}_color_property was not set, setting to: {new_color_property}',
-                            deferred=True,
-                            attribute=attribute,
-                            new_color_property=new_color_property,
-                        )
+                        f'_{attribute}_color_property was not set, setting to: {new_color_property}'
                     )
                 else:
                     raise ValueError(
-                        trans._(
-                            'There must be a valid Shapes.properties to use {color_mode}',
-                            deferred=True,
-                            color_mode=color_mode,
-                        )
+                        f'There must be a valid Shapes.properties to use {color_mode}'
                     )
 
             # ColorMode.COLORMAP can only be applied to numeric properties
@@ -1169,10 +1152,7 @@ class Shapes(Layer):
                 self.properties[color_property].dtype.type, np.number
             ):
                 raise TypeError(
-                    trans._(
-                        'selected property must be numeric to use ColorMode.COLORMAP',
-                        deferred=True,
-                    )
+                    'selected property must be numeric to use ColorMode.COLORMAP'
                 )
             setattr(self, f'_{attribute}_color_mode', color_mode)
             self.refresh_colors()
@@ -1190,12 +1170,13 @@ class Shapes(Layer):
             The name of the attribute to set the color of.
             Should be 'edge' for edge_color or 'face' for face_color.
         """
-        transformed_color_cycle, transformed_colors = transform_color_cycle(
+        transformed_colors = transform_color_cycle(
             color_cycle=color_cycle,
             elem_name=f'{attribute}_color_cycle',
             default='white',
         )
-        setattr(self, f'_{attribute}_color_cycle_values', transformed_colors)
+        transformed_color_cycle = ColorCycle(transformed_colors)
+
         setattr(self, f'_{attribute}_color_cycle', transformed_color_cycle)
 
         if self._update_properties is True:
@@ -1222,7 +1203,7 @@ class Shapes(Layer):
         if isinstance(width, list):
             if not len(width) == self.nshapes:
                 raise ValueError(
-                    trans._('Length of list does not match number of shapes')
+                    'Length of list does not match number of shapes'
                 )
 
             widths = width
@@ -1251,7 +1232,7 @@ class Shapes(Layer):
         if isinstance(z_index, list):
             if not len(z_index) == self.nshapes:
                 raise ValueError(
-                    trans._('Length of list does not match number of shapes')
+                    'Length of list does not match number of shapes'
                 )
 
             z_indices = z_index
@@ -1308,16 +1289,6 @@ class Shapes(Layer):
                 with self.block_update_properties():
                     self.current_edge_width = unique_edge_width
 
-            unique_properties = {}
-            for k, v in self.properties.items():
-                unique_properties[k] = _unique_element(
-                    v[selected_data_indices]
-                )
-
-            if all(p is not None for p in unique_properties.values()):
-                with self.block_update_properties():
-                    self.current_properties = unique_properties
-
         self._set_highlight()
 
     @property
@@ -1343,7 +1314,7 @@ class Shapes(Layer):
             Should be 'edge' for edge_color or 'face' for face_color.
         """
         if self._is_color_mapped(color):
-            if guess_continuous(self.properties[color]):
+            if guess_continuous(self.properties[color], feature_name=color):
                 setattr(self, f'_{attribute}_color_mode', ColorMode.COLORMAP)
             else:
                 setattr(self, f'_{attribute}_color_mode', ColorMode.CYCLE)
@@ -1431,7 +1402,7 @@ class Shapes(Layer):
             The calculated values for setting edge or face_color
         """
         if self._is_color_mapped(color):
-            if guess_continuous(self.properties[color]):
+            if guess_continuous(self.properties[color], feature_name=color):
                 setattr(self, f'_{attribute}_color_mode', ColorMode.COLORMAP)
             else:
                 setattr(self, f'_{attribute}_color_mode', ColorMode.CYCLE)
@@ -1607,10 +1578,7 @@ class Shapes(Layer):
             return False
 
         raise ValueError(
-            trans._(
-                'Should be the name of a color, an array of colors, or the name of a property',
-                deferred=True,
-            )
+            'Should be the name of a color, an array of colors, or the name of a property'
         )
 
     def _get_state(self) -> dict[str, Any]:
@@ -1633,18 +1601,18 @@ class Shapes(Layer):
                 'ndim': self.ndim,
                 'properties': self.properties,
                 'property_choices': self.property_choices,
-                'text': self.text.dict(),
+                'text': self.text.model_dump(),
                 'shape_type': self.shape_type,
                 'opacity': self.opacity,
                 'z_index': self.z_index,
                 'edge_width': self.edge_width,
                 'face_color': face_color,
                 'face_color_cycle': self.face_color_cycle,
-                'face_colormap': self.face_colormap.dict(),
+                'face_colormap': self.face_colormap.model_dump(),
                 'face_contrast_limits': self.face_contrast_limits,
                 'edge_color': edge_color,
                 'edge_color_cycle': self.edge_color_cycle,
-                'edge_colormap': self.edge_colormap.dict(),
+                'edge_colormap': self.edge_colormap.model_dump(),
                 'edge_contrast_limits': self.edge_contrast_limits,
                 'data': self.data,
                 'features': self.features,
@@ -2728,15 +2696,13 @@ class Shapes(Layer):
                     if len(vertices) <= 3 and prev_vertices > 3:
                         # https://github.com/napari/napari/issues/7903
                         show_warning(
-                            trans._(
-                                'Polygons must have three or more vertices. '
-                                'Lasso polygons are simplified using the '
-                                'RDP algorithm, which may cause polygons '
-                                'smaller than RDP epsilon to disappear. If  '
-                                'you face issues drawing small polygons, '
-                                'try reducing napari > Settings > '
-                                'Experimental > RDP epsilon. '
-                            ),
+                            'Polygons must have three or more vertices. '
+                            'Lasso polygons are simplified using the '
+                            'RDP algorithm, which may cause polygons '
+                            'smaller than RDP epsilon to disappear. If  '
+                            'you face issues drawing small polygons, '
+                            'try reducing napari > Settings > '
+                            'Experimental > RDP epsilon. ',
                         )
                 if len(vertices) <= 3:
                     self._data_view.remove(index)
@@ -2827,6 +2793,8 @@ class Shapes(Layer):
                 vertex_indices=((),),
             )
             self._data_view.remove_multiple(to_remove)
+
+            self._value = (None, None)
 
             if len(self.data) == 0 and self.selected_data:
                 self.selected_data.clear()
@@ -3321,7 +3289,7 @@ class Shapes(Layer):
 
     def _get_layer_slicing_state(
         self, data: LayerDataType, cache: bool
-    ) -> '_ShapesSlicingState':
+    ) -> _ShapesSlicingState:
         return _ShapesSlicingState(layer=self, data=data, cache=cache)
 
 

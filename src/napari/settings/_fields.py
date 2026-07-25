@@ -3,120 +3,81 @@ from dataclasses import dataclass
 from functools import total_ordering
 from typing import Any, SupportsInt
 
+from pydantic import GetCoreSchemaHandler
+from pydantic_core import CoreSchema, core_schema
+
 from napari.utils.logo import available_logos
 from napari.utils.theme import available_themes, is_theme_available
-from napari.utils.translations import _load_language, get_language_packs, trans
 
 
-class Logo(str):
+class StrField(str):
+    # https://pydantic-docs.helpmanual.io/usage/types/#custom-data-types
+
+    __slots__ = ()
+
+    @classmethod
+    def __get_pydantic_core_schema__(
+        cls, source_type: Any, handler: GetCoreSchemaHandler
+    ) -> CoreSchema:
+        return core_schema.no_info_after_validator_function(
+            cls.validate,
+            core_schema.str_schema(),
+        )
+
+    @classmethod
+    def __get_pydantic_json_schema__(cls, core_schema, handler):
+        json_schema = handler(core_schema)
+        json_schema.update(enum=cls._available_options())
+        return json_schema
+
+    @classmethod
+    def validate(cls, v):
+        if not isinstance(v, str):
+            raise TypeError('must be a string')
+
+        value = v.lower()
+        if not cls._valid_option(v):
+            raise ValueError(
+                f'"{value}" is not valid. It must be one of {", ".join(cls._available_options())}'
+            )
+
+        return value
+
+    @classmethod
+    def _available_options(cls):
+        raise NotImplementedError
+
+    @classmethod
+    def _valid_option(cls, v):
+        raise NotImplementedError
+
+
+class Logo(StrField):
     """
     Custom logo type to dynamically load all available logos.
     """
 
-    __slots__ = ()
+    @classmethod
+    def _available_options(cls):
+        return available_logos()
 
     @classmethod
-    def __get_validators__(cls):
-        yield cls.validate
-
-    @classmethod
-    def __modify_schema__(cls, field_schema):
-        field_schema.update(enum=available_logos())
-
-    @classmethod
-    def validate(cls, v):
-        if not isinstance(v, str):
-            raise TypeError(trans._('must be a string', deferred=True))
-
-        value = v.lower()
-        if value not in available_logos():
-            raise ValueError(
-                trans._(
-                    '"{value}" is not valid. It must be one of {logos}',
-                    deferred=True,
-                    value=value,
-                    themes=', '.join(available_logos()),
-                )
-            )
-
-        return value
+    def _valid_option(cls, v):
+        return v in cls._available_options()
 
 
-class Theme(str):
+class Theme(StrField):
     """
     Custom theme type to dynamically load all installed themes.
     """
 
-    # https://pydantic-docs.helpmanual.io/usage/types/#custom-data-types
-
-    __slots__ = ()
+    @classmethod
+    def _available_options(cls):
+        return available_themes()
 
     @classmethod
-    def __get_validators__(cls):
-        yield cls.validate
-
-    @classmethod
-    def __modify_schema__(cls, field_schema):
-        # TODO: Provide a way to handle keys so we can display human readable
-        # option in the preferences dropdown
-        field_schema.update(enum=available_themes())
-
-    @classmethod
-    def validate(cls, v):
-        if not isinstance(v, str):
-            raise TypeError(trans._('must be a string', deferred=True))
-
-        value = v.lower()
-        if not is_theme_available(value):
-            raise ValueError(
-                trans._(
-                    '"{value}" is not valid. It must be one of {themes}',
-                    deferred=True,
-                    value=value,
-                    themes=', '.join(available_themes()),
-                )
-            )
-
-        return value
-
-
-class Language(str):
-    """
-    Custom theme type to dynamically load all installed language packs.
-    """
-
-    # https://pydantic-docs.helpmanual.io/usage/types/#custom-data-types
-
-    __slots__ = ()
-
-    @classmethod
-    def __get_validators__(cls):
-        yield cls.validate
-
-    @classmethod
-    def __modify_schema__(cls, field_schema):
-        # TODO: Provide a way to handle keys so we can display human readable
-        # option in the preferences dropdown
-        language_packs = list(get_language_packs(_load_language()).keys())
-        field_schema.update(enum=language_packs)
-
-    @classmethod
-    def validate(cls, v):
-        if not isinstance(v, str):
-            raise TypeError(trans._('must be a string', deferred=True))
-
-        language_packs = list(get_language_packs(_load_language()).keys())
-        if v not in language_packs:
-            raise ValueError(
-                trans._(
-                    '"{value}" is not valid. It must be one of {language_packs}.',
-                    deferred=True,
-                    value=v,
-                    language_packs=', '.join(language_packs),
-                )
-            )
-
-        return v
+    def _valid_option(cls, v):
+        return is_theme_available(v)
 
 
 @total_ordering
@@ -162,13 +123,7 @@ class Version:
             version = version.decode('UTF-8')
         match = cls._SEMVER_PATTERN.match(version)
         if match is None:
-            raise ValueError(
-                trans._(
-                    '{version} is not valid SemVer string',
-                    deferred=True,
-                    version=version,
-                )
-            )
+            raise ValueError(f'{version} is not valid SemVer string')
         matched_version_parts: dict[str, Any] = match.groupdict()
         return cls(**matched_version_parts)
 
@@ -196,12 +151,7 @@ class Version:
             other = Version(*other)
         elif not isinstance(other, Version):
             raise TypeError(
-                trans._(
-                    'Expected str, bytes, dict, tuple, list, or {cls} instance, but got {other_type}',
-                    deferred=True,
-                    cls=cls,
-                    other_type=type(other),
-                )
+                f'Expected str, bytes, dict, tuple, list, or {cls} instance, but got {type(other)}'
             )
         return other
 
@@ -227,8 +177,10 @@ class Version:
         return v
 
     @classmethod
-    def __get_validators__(cls):
-        yield cls.validate
+    def __get_pydantic_core_schema__(
+        cls, source_type: Any, handler: GetCoreSchemaHandler
+    ) -> CoreSchema:
+        return core_schema.no_info_plain_validator_function(cls.validate)
 
     @classmethod
     def validate(cls, v):

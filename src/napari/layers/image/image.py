@@ -4,11 +4,9 @@ from __future__ import annotations
 
 import typing
 import warnings
-from collections.abc import Sequence
 from typing import Any, Literal, cast
 
 import numpy as np
-from scipy import ndimage as ndi
 
 from napari.layers._data_protocols import LayerDataProtocol
 from napari.layers._multiscale_data import MultiScaleData
@@ -31,12 +29,14 @@ from napari.types import LayerDataType
 from napari.utils._dtype import get_dtype_limits, normalize_dtype
 from napari.utils.colormaps import ensure_colormap
 from napari.utils.colormaps.colormap_utils import _coerce_contrast_limits
-from napari.utils.translations import trans
 
 if typing.TYPE_CHECKING:
+    from collections.abc import Sequence
+
     import numpy.typing as npt
     import pint
 
+    from napari.components.histogram import HistogramModel
     from napari.types import ArrayLike
     from napari.utils.transforms import Affine
 
@@ -52,9 +52,11 @@ class Image(IntensityVisualizationMixin, ScalarFieldBase):
         Image data. Can be N >= 2 dimensional. If the last dimension has length
         3 or 4 can be interpreted as RGB or RGBA if rgb is `True`. If a
         list and arrays are decreasing in shape then the data is treated as
-        a multiscale image. Please note multiscale rendering is only
-        supported in 2D. In 3D, only the lowest resolution scale is
-        displayed.
+        a multiscale image. In 2D, the displayed resolution is chosen
+        automatically based on the viewport. In 3D, the lowest resolution
+        scale is displayed by default. The resolution level can be locked
+        via ``locked_data_level`` or the resolution control in the layer
+        controls UI.
     affine : n-D array or napari.utils.transforms.Affine
         (N+1, N+1) affine transformation matrix in homogeneous coordinates.
         The first (N, N) entries correspond to a linear transform and
@@ -115,9 +117,11 @@ class Image(IntensityVisualizationMixin, ScalarFieldBase):
         represented by a list of array-like image data. If not specified by
         the user and if the data is a list of arrays that decrease in shape,
         then it will be taken to be multiscale. The first image in the list
-        should be the largest. Please note multiscale rendering is only
-        supported in 2D. In 3D, only the lowest resolution scale is
-        displayed.
+        should be the largest. In 2D, the displayed resolution is chosen
+        automatically based on the viewport. In 3D, the lowest resolution
+        scale is displayed by default. The resolution level can be locked
+        via ``locked_data_level`` or the resolution control in the layer
+        controls UI.
     name : str
         Name of the layer.
     opacity : float
@@ -162,9 +166,11 @@ class Image(IntensityVisualizationMixin, ScalarFieldBase):
         Image data. Can be N dimensional. If the last dimension has length
         3 or 4 can be interpreted as RGB or RGBA if rgb is `True`. If a list
         and arrays are decreasing in shape then the data is treated as a
-        multiscale image. Please note multiscale rendering is only
-        supported in 2D. In 3D, only the lowest resolution scale is
-        displayed.
+        multiscale image. In 2D, the displayed resolution is chosen
+        automatically based on the viewport. In 3D, the lowest resolution
+        scale is displayed by default. The resolution level can be locked
+        via ``locked_data_level`` or the resolution control in the layer
+        controls UI.
     axis_labels : tuple of str
         Dimension names of the layer data.
     metadata : dict
@@ -177,9 +183,11 @@ class Image(IntensityVisualizationMixin, ScalarFieldBase):
     multiscale : bool
         Whether the data is a multiscale image or not. Multiscale data is
         represented by a list of array like image data. The first image in the
-        list should be the largest. Please note multiscale rendering is only
-        supported in 2D. In 3D, only the lowest resolution scale is
-        displayed.
+        list should be the largest. In 2D, the displayed resolution is chosen
+        automatically based on the viewport. In 3D, the lowest resolution
+        scale is displayed by default. The resolution level can be locked
+        via ``locked_data_level`` or the resolution control in the layer
+        controls UI.
     mode : str
         Interactive mode. The normal, default mode is PAN_ZOOM, which
         allows for normal interactivity with the canvas.
@@ -272,9 +280,7 @@ class Image(IntensityVisualizationMixin, ScalarFieldBase):
         data_shape = data.shape if hasattr(data, 'shape') else data[0].shape
         if rgb and not guess_rgb(data_shape, min_side_len=0):
             raise ValueError(
-                trans._(
-                    "'rgb' was set to True but data does not have suitable dimensions."
-                )
+                "'rgb' was set to True but data does not have suitable dimensions."
             )
         if rgb is None:
             rgb = guess_rgb(data_shape)
@@ -386,13 +392,13 @@ class Image(IntensityVisualizationMixin, ScalarFieldBase):
             {
                 'rgb': self.rgb,
                 'multiscale': self.multiscale,
-                'colormap': self.colormap.dict(),
+                'colormap': self.colormap.model_dump(),
                 'contrast_limits': self.contrast_limits,
                 'interpolation2d': self.interpolation2d,
                 'interpolation3d': self.interpolation3d,
                 'rendering': self.rendering,
                 'depiction': self.depiction,
-                'plane': self.plane.dict(),
+                'plane': self.plane.model_dump(),
                 'iso_threshold': self.iso_threshold,
                 'attenuation': self.attenuation,
                 'gamma': self.gamma,
@@ -414,20 +420,30 @@ class Image(IntensityVisualizationMixin, ScalarFieldBase):
         self.events.attenuation()
 
     @property
-    def data(self) -> LayerDataProtocol | MultiScaleData:
-        """Data, possibly in multiscale wrapper. Obeys LayerDataProtocol."""
-        return self._data
+    def histogram(self) -> HistogramModel:
+        """Histogram model for this layer, created lazily on first access.
 
-    @data.setter
+        The histogram model computes and stores histogram data for the layer,
+        responding to changes in layer data, contrast limits, and gamma.
+        The model is not created until the ``histogram`` property is first
+        accessed.
+
+        Returns
+        -------
+        HistogramModel
+            Histogram model instance for this layer.
+        """
+        if not hasattr(self, '_histogram'):
+            from napari.components.histogram import HistogramModel
+
+            self._histogram = HistogramModel(self)
+        return self._histogram
+
+    @ScalarFieldBase.data.setter  # type: ignore[attr-defined]
     def data(self, data: LayerDataProtocol | MultiScaleData) -> None:
-        self._data_raw = data
-        # note, we don't support changing multiscale in an Image instance
-        self._data = MultiScaleData(data) if self.multiscale else data  # type: ignore
-        self._update_dims()
+        ScalarFieldBase.data.fset(self, data)  # type: ignore[attr-defined]
         if self._keep_auto_contrast:
             self.reset_contrast_limits()
-        self.events.data(value=self.data)
-        self._reset_editable()
 
     @property
     def interpolation2d(self) -> InterpolationStr:
@@ -437,14 +453,12 @@ class Image(IntensityVisualizationMixin, ScalarFieldBase):
     def interpolation2d(self, value: InterpolationStr | Interpolation) -> None:
         if value == 'bilinear':
             raise ValueError(
-                trans._(
-                    "'bilinear' interpolation is not valid for interpolation2d. Did you mean 'linear' instead ?",
-                ),
+                "'bilinear' interpolation is not valid for interpolation2d. Did you mean 'linear' instead ?",
             )
         if value == 'bicubic':
             value = 'cubic'
             warnings.warn(
-                trans._("'bicubic' is deprecated. Please use 'cubic' instead"),
+                "'bicubic' is deprecated. Please use 'cubic' instead",
                 category=DeprecationWarning,
                 stacklevel=2,
             )
@@ -465,7 +479,7 @@ class Image(IntensityVisualizationMixin, ScalarFieldBase):
         if value == 'bicubic':
             value = 'cubic'
             warnings.warn(
-                trans._("'bicubic' is deprecated. Please use 'cubic' instead"),
+                "'bicubic' is deprecated. Please use 'cubic' instead",
                 category=DeprecationWarning,
                 stacklevel=2,
             )
@@ -492,10 +506,11 @@ class Image(IntensityVisualizationMixin, ScalarFieldBase):
 
     def _update_thumbnail(self) -> None:
         """Update thumbnail with current image data and colormap."""
-        # don't bother updating thumbnail if we don't have any data
-        # this also avoids possible dtype mismatch issues below
-        # for example np.clip may raise an OverflowError (in numpy 2.0)
+        from scipy import ndimage as ndi
+
+        # black thumbnail if there is no data in the slice
         if self._slice.empty:
+            self.thumbnail = np.zeros(self._thumbnail_shape, self.dtype)
             return
 
         image = self._slice.thumbnail.raw
@@ -564,16 +579,12 @@ class Image(IntensityVisualizationMixin, ScalarFieldBase):
         """
         input_data: np.ndarray
         if mode == 'data':
-            input_data = self.data[-1] if self.multiscale else self.data  # type: ignore[assignment]
+            input_data = self.data[-1] if self.multiscale else self.data
         elif mode == 'slice':
             input_data = self._slice.image.raw  # ugh
         else:
             raise ValueError(
-                trans._(
-                    "mode must be either 'data' or 'slice', got {mode!r}",
-                    deferred=True,
-                    mode=mode,
-                )
+                f"mode must be either 'data' or 'slice', got {mode!r}"
             )
         return calc_data_range(
             cast(LayerDataProtocol, input_data), rgb=self.rgb, dtype=self.dtype
