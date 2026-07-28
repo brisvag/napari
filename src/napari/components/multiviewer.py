@@ -107,7 +107,7 @@ class MultiViewer(KeymapProvider, MousemapProvider, EventedModel):
     # Using allow_mutation=False means these attributes aren't settable and don't
     # have an event emitter associated with them
     help: str = ''
-    status: Union[str, dict] = 'Ready'
+    status: Union[str, Dict] = 'Ready'
     tooltip: Tooltip = Field(default_factory=Tooltip, allow_mutation=False)
     theme: str = Field(default_factory=_current_theme)
     title: str = 'napari'
@@ -400,7 +400,7 @@ class MultiViewer(KeymapProvider, MousemapProvider, EventedModel):
         """
         Update layer help text base on layer mode.
         """
-        layer_to_func_and_mode: dict[type[Layer], list] = {
+        layer_to_func_and_mode: Dict[type[Layer], list] = {
             Points: points_fun_to_mode,
             Labels: labels_fun_to_mode,
             Shapes: shapes_fun_to_mode,
@@ -762,7 +762,7 @@ class MultiViewer(KeymapProvider, MousemapProvider, EventedModel):
         from napari.plugins import _npe2, plugin_manager
 
         plugin_spec_reader = None
-        data: None | SampleDataCreator | SampleData
+        data: SampleDataCreator | SampleData | None
         # try with npe2
         data, available = _npe2.get_sample_data(plugin, sample)
 
@@ -967,7 +967,7 @@ class MultiViewer(KeymapProvider, MousemapProvider, EventedModel):
     def _open_or_raise_error(
         self,
         paths: list[Path | str],
-        kwargs: dict[str, Any] | None = None,
+        kwargs: Dict[str, Any] | None = None,
         layer_type: LayerTypeName | None = None,
         stack: bool = False,
     ):
@@ -1096,7 +1096,7 @@ class MultiViewer(KeymapProvider, MousemapProvider, EventedModel):
         paths: list[PathLike],
         *,
         stack: bool,
-        kwargs: dict | None = None,
+        kwargs: Dict | None = None,
         plugin: str | None = None,
         layer_type: LayerTypeName | None = None,
     ) -> list[Layer]:
