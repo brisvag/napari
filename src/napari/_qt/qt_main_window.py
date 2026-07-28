@@ -1577,20 +1577,26 @@ class Window:
             extra_variables = {}
         settings = get_settings()
         with contextlib.suppress(AttributeError, RuntimeError):
-            value = event.value if event else settings.appearance.theme
-            self._qt_viewer.viewer.theme = value
-            actual_theme_name = value
-            if value == 'system':
-                # system isn't a theme, so get the name
-                actual_theme_name = get_system_theme()
+            if event and event.type != 'theme':
+                from rich import inspect
+
+                inspect(event)
+                extra_variables.update(event.value)
+            else:
+                theme_id = event.value if event else settings.appearance.theme
+                self._qt_viewer.viewer.theme = theme_id
+                theme_id = (
+                    get_system_theme() if theme_id == 'system' else theme_id
+                )
             # check `font_size` value is always passed when updating style
+            # in order to keep font size consistent on theme switch (TODO: what's the point then???)
             if 'font_size' not in extra_variables:
                 extra_variables.update(
                     {'font_size': f'{settings.appearance.font_size}pt'}
                 )
             # set the style sheet with the theme name and extra_variables
             style_sheet = get_stylesheet(
-                actual_theme_name, extra_variables=extra_variables
+                theme_id, extra_variables=extra_variables
             )
             self._qt_window.setStyleSheet(style_sheet)
             self._qt_viewer.setStyleSheet(style_sheet)
