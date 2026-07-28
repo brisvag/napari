@@ -91,6 +91,8 @@ EXCLUDE_DICT = {
 
 __all__ = ['MultiViewer', 'valid_add_kwargs']
 
+Dict = dict  # rename, because MultiViewer
+
 
 def _current_theme() -> str:
     return get_settings().appearance.theme
@@ -198,7 +200,7 @@ class MultiViewer(KeymapProvider, MousemapProvider, EventedModel):
 
     def _calc_status_from_cursor(
         self,
-    ) -> tuple[str | dict, str] | None:
+    ) -> tuple[str | Dict, str] | None:
         if not self.mouse_over_canvas:
             return None
         coord2val: dict[str, list[str]] = {}
@@ -210,7 +212,11 @@ class MultiViewer(KeymapProvider, MousemapProvider, EventedModel):
         # TODO: this doesn't work well yet with grid mode (and is broken by wide borders too)
 
         # Compute the tooltip first since it is always needed.
-        if self.tooltip.visible and active is not None and active._loaded:
+        if (
+            self.tooltip.visible
+            and active is not None
+            and active._slicing_state._loaded
+        ):
             tooltip_text = active._get_tooltip_text(
                 np.asarray(self.cursor.position),
                 view_direction=self.cursor._view_direction,
@@ -220,7 +226,11 @@ class MultiViewer(KeymapProvider, MousemapProvider, EventedModel):
 
         # If there is an active layer and a single selection, calculate status using "the classic way".
         # Then return the status and the tooltip.
-        if active is not None and active._loaded and len(selection) < 2:
+        if (
+            active is not None
+            and active._slicing_state._loaded
+            and len(selection) < 2
+        ):
             status = active.get_status(
                 self.cursor.position,
                 view_direction=self.cursor._view_direction,
@@ -235,8 +245,8 @@ class MultiViewer(KeymapProvider, MousemapProvider, EventedModel):
             if (
                 not layer.visible
                 or layer.opacity == 0
-                or not layer._loaded
-                or (layer not in selection and not self.grid.enabled)
+                or not layer._slicing_state._loaded
+                or (layer not in selection and not self.canvas.grid.enabled)
             ):
                 continue
             status = layer.get_status(
@@ -255,7 +265,7 @@ class MultiViewer(KeymapProvider, MousemapProvider, EventedModel):
                     f'{layer.name}: {status["value"]}{emphasis}'
                 )
         if coord2val:
-            if not self.grid.enabled:
+            if not self.canvas.grid.enabled:
                 # use a single coordinate system
                 values = list(itertools.chain(*coord2val.values()))
                 key = next(iter(coord2val))  # choose arbitrary coordinate
@@ -265,9 +275,9 @@ class MultiViewer(KeymapProvider, MousemapProvider, EventedModel):
                 for key, values in coord2val.items()
             ]
             status_str = separator.join(status_strs)
-        elif coord_str and not self.grid.enabled:
+        elif coord_str and not self.canvas.grid.enabled:
             status_str = coord_str + '[empty]'
-        elif self.grid.enabled:
+        elif self.canvas.grid.enabled:
             status_str = '[empty]'
         else:
             status_str = 'Ready'
