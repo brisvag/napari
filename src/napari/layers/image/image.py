@@ -114,6 +114,11 @@ class Image(IntensityVisualizationMixin, ScalarFieldBase):
         Same as 'interpolation2d' but for 3D rendering.
     iso_threshold : float
         Threshold for isosurface.
+    locked_data_level : int, optional
+        Lock the multiscale resolution level to a specific index. When set,
+        forces rendering at the given multiscale level instead of automatic
+        level selection based on the viewport. Set to ``None`` (default) to
+        use automatic selection.
     metadata : dict
         Layer metadata.
     multiscale : bool
@@ -235,6 +240,9 @@ class Image(IntensityVisualizationMixin, ScalarFieldBase):
     plane : SlicingPlane or dict
         Properties defining plane rendering in 3D. Valid dictionary keys are
         {'position', 'normal', 'thickness'}.
+    projection_mode : str
+        How data outside the viewed dimensions, but inside the thick Dims slice will
+        be projected onto the viewed dimensions. Must fit to ImageProjectionMode
     experimental_clipping_planes : ClippingPlaneList
         Clipping planes defined in data coordinates, used to clip the volume.
     custom_interpolation_kernel_2d : np.ndarray
@@ -270,6 +278,7 @@ class Image(IntensityVisualizationMixin, ScalarFieldBase):
         interpolation2d: InterpolationStr = 'nearest',
         interpolation3d: InterpolationStr = 'linear',
         iso_threshold: float | None = None,
+        locked_data_level: int | None = None,
         metadata: dict | None = None,
         multiscale: bool | None = None,
         name: str | None = None,
@@ -352,6 +361,9 @@ class Image(IntensityVisualizationMixin, ScalarFieldBase):
         else:
             self._iso_threshold = iso_threshold
 
+        if locked_data_level is not None:
+            self.locked_data_level = locked_data_level
+
     @property
     def rendering(self) -> str:
         """Return current rendering mode.
@@ -402,6 +414,7 @@ class Image(IntensityVisualizationMixin, ScalarFieldBase):
             {
                 'rgb': self.rgb,
                 'multiscale': self.multiscale,
+                'locked_data_level': self.locked_data_level,
                 'auto_contrast': self.auto_contrast,
                 'colormap': self.colormap.model_dump(),
                 'contrast_limits': self.contrast_limits,
