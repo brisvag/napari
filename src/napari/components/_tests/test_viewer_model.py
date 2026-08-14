@@ -10,7 +10,7 @@ from napari._tests.utils import (
     good_layer_data,
     layer_test_data,
 )
-from napari.components import ViewerModel
+from napari.components import Viewer
 from napari.errors import MultipleReaderError, ReaderPluginError
 from napari.errors.reader_errors import NoAvailableReaderError
 from napari.layers import Image
@@ -24,19 +24,19 @@ from napari.utils.events.event import WarningEmitter
 
 def test_viewer_model():
     """Test instantiating viewer model."""
-    viewer = ViewerModel()
+    viewer = Viewer()
     assert viewer.title == 'napari'
     assert len(viewer.layers) == 0
     assert viewer.dims.ndim == 2
 
     # Create viewer model with custom title
-    viewer = ViewerModel(title='testing')
+    viewer = Viewer(title='testing')
     assert viewer.title == 'testing'
 
 
 def test_add_image():
     """Test adding image."""
-    viewer = ViewerModel()
+    viewer = Viewer()
     np.random.seed(0)
     data = np.random.random((10, 15))
     viewer.add_image(data)
@@ -46,7 +46,7 @@ def test_add_image():
 
 
 def test_add_image_multichannel_share_memory():
-    viewer = ViewerModel()
+    viewer = Viewer()
     image = np.random.random((10, 5, 64, 64))
     layers = viewer.add_image(image, channel_axis=1)
     for layer in layers:
@@ -55,7 +55,7 @@ def test_add_image_multichannel_share_memory():
 
 def test_add_image_colormap_variants():
     """Test adding image with all valid colormap argument types."""
-    viewer = ViewerModel()
+    viewer = Viewer()
     np.random.seed(0)
     data = np.random.random((10, 15))
     # as string
@@ -91,14 +91,14 @@ def test_add_image_colormap_variants():
 
 def test_add_image_accepts_all_arguments_as_sequence():
     """See https://github.com/napari/napari/pull/7089."""
-    viewer = ViewerModel(ndisplay=3)
+    viewer = Viewer(ndisplay=3)
     img = viewer.add_image(np.random.rand(2, 2))
     viewer.add_image(**img._get_state())
 
 
 def test_add_volume():
     """Test adding volume."""
-    viewer = ViewerModel(ndisplay=3)
+    viewer = Viewer(ndisplay=3)
     np.random.seed(0)
     data = np.random.random((10, 15, 20))
     viewer.add_image(data)
@@ -109,7 +109,7 @@ def test_add_volume():
 
 def test_add_multiscale():
     """Test adding image multiscale."""
-    viewer = ViewerModel()
+    viewer = Viewer()
     shapes = [(40, 20), (20, 10), (10, 5)]
     np.random.seed(0)
     data = [np.random.random(s) for s in shapes]
@@ -123,7 +123,7 @@ def test_add_multiscale():
 
 def test_add_multiscale_image_with_negative_floats():
     """See https://github.com/napari/napari/issues/5257"""
-    viewer = ViewerModel()
+    viewer = Viewer()
     shapes = [(20, 10), (10, 5)]
     data = [np.zeros(s, dtype=np.float64) for s in shapes]
     data[0][-4:, -2:] = -1
@@ -140,7 +140,7 @@ def test_add_multiscale_image_with_negative_floats():
 
 def test_add_labels():
     """Test adding labels image."""
-    viewer = ViewerModel()
+    viewer = Viewer()
     np.random.seed(0)
     data = np.random.randint(20, size=(10, 15))
     viewer.add_labels(data)
@@ -151,7 +151,7 @@ def test_add_labels():
 
 def test_add_points():
     """Test adding points."""
-    viewer = ViewerModel()
+    viewer = Viewer()
     np.random.seed(0)
     data = 20 * np.random.random((10, 2))
     viewer.add_points(data)
@@ -162,7 +162,7 @@ def test_add_points():
 
 def test_single_point_dims():
     """Test dims of a Points layer with a single 3D point."""
-    viewer = ViewerModel()
+    viewer = Viewer()
     shape = (1, 3)
     data = np.zeros(shape)
     viewer.add_points(data)
@@ -170,7 +170,7 @@ def test_single_point_dims():
 
 
 def test_add_empty_points_to_empty_viewer():
-    viewer = ViewerModel()
+    viewer = Viewer()
     layer = viewer.add_points(name='empty points')
     assert layer.ndim == 2
     layer.add([1000.0, 27.0])
@@ -178,7 +178,7 @@ def test_add_empty_points_to_empty_viewer():
 
 
 def test_add_empty_points_on_top_of_image():
-    viewer = ViewerModel()
+    viewer = Viewer()
     image = np.random.random((8, 64, 64))
     # add_image always returns the corresponding layer
     _ = viewer.add_image(image)
@@ -189,7 +189,7 @@ def test_add_empty_points_on_top_of_image():
 
 
 def test_add_empty_shapes_layer():
-    viewer = ViewerModel()
+    viewer = Viewer()
     image = np.random.random((8, 64, 64))
     # add_image always returns the corresponding layer
     _ = viewer.add_image(image)
@@ -199,7 +199,7 @@ def test_add_empty_shapes_layer():
 
 def test_add_vectors():
     """Test adding vectors."""
-    viewer = ViewerModel()
+    viewer = Viewer()
     np.random.seed(0)
     data = 20 * np.random.random((10, 2, 2))
     viewer.add_vectors(data)
@@ -210,7 +210,7 @@ def test_add_vectors():
 
 def test_add_shapes(ten_four_corner):  # noqa: F811
     """Test adding shapes."""
-    viewer = ViewerModel()
+    viewer = Viewer()
     viewer.add_shapes(ten_four_corner)
     assert len(viewer.layers) == 1
     assert np.array_equal(viewer.layers[0].data, ten_four_corner)
@@ -219,7 +219,7 @@ def test_add_shapes(ten_four_corner):  # noqa: F811
 
 def test_add_surface():
     """Test adding 3D surface."""
-    viewer = ViewerModel()
+    viewer = Viewer()
     np.random.seed(0)
     vertices = np.random.random((10, 3))
     faces = np.random.randint(10, size=(6, 3))
@@ -238,7 +238,7 @@ def test_add_surface():
 
 def test_mix_dims():
     """Test adding images of mixed dimensionality."""
-    viewer = ViewerModel()
+    viewer = Viewer()
     np.random.seed(0)
     data = np.random.random((10, 15))
     viewer.add_image(data)
@@ -255,7 +255,7 @@ def test_mix_dims():
 
 def test_new_labels_empty():
     """Test adding new labels layer to empty viewer."""
-    viewer = ViewerModel()
+    viewer = Viewer()
     viewer._new_labels()
     assert len(viewer.layers) == 1
     assert np.max(viewer.layers[0].data) == 0
@@ -266,7 +266,7 @@ def test_new_labels_empty():
 
 def test_new_labels_image():
     """Test adding new labels layer with image present."""
-    viewer = ViewerModel()
+    viewer = Viewer()
     np.random.seed(0)
     data = np.random.random((10, 15))
     viewer.add_image(data)
@@ -281,7 +281,7 @@ def test_new_labels_image():
 
 def test_new_labels_scaled_image():
     """Test adding new labels layer with scaled image present."""
-    viewer = ViewerModel()
+    viewer = Viewer()
     np.random.seed(0)
     data = np.random.random((10, 15))
     viewer.add_image(data, scale=(3, 3))
@@ -296,7 +296,7 @@ def test_new_labels_scaled_image():
 
 def test_new_labels_scaled_translated_image():
     """Test adding new labels layer with transformed image present."""
-    viewer = ViewerModel()
+    viewer = Viewer()
     np.random.seed(0)
     data = np.random.random((10, 15))
     viewer.add_image(data, scale=(3, 3), translate=(20, -5))
@@ -312,14 +312,14 @@ def test_new_labels_scaled_translated_image():
 def test_new_points():
     """Test adding new points layer."""
     # Add labels to empty viewer
-    viewer = ViewerModel()
+    viewer = Viewer()
     viewer.add_points()
     assert len(viewer.layers) == 1
     assert len(viewer.layers[0].data) == 0
     assert viewer.dims.ndim == 2
 
     # Add points with image already present
-    viewer = ViewerModel()
+    viewer = Viewer()
     np.random.seed(0)
     data = np.random.random((10, 15))
     viewer.add_image(data)
@@ -336,7 +336,7 @@ def test_view_centering_with_points_add():
     """
     image = np.zeros((5, 10, 10))
 
-    viewer = ViewerModel()
+    viewer = Viewer()
     viewer.add_image(image)
     assert tuple(viewer.dims.point) == (2, 4, 4)
 
@@ -355,7 +355,7 @@ def test_view_centering_with_scale():
     """Regression test for issue #5735"""
     image = np.zeros((5, 10, 10))
 
-    viewer = ViewerModel()
+    viewer = Viewer()
     viewer.add_image(image, scale=(1, 1, 1))
     assert tuple(viewer.dims.point) == (2, 4, 4)
 
@@ -367,14 +367,14 @@ def test_view_centering_with_scale():
 def test_new_shapes():
     """Test adding new shapes layer."""
     # Add labels to empty viewer
-    viewer = ViewerModel()
+    viewer = Viewer()
     viewer.add_shapes()
     assert len(viewer.layers) == 1
     assert len(viewer.layers[0].data) == 0
     assert viewer.dims.ndim == 2
 
     # Add points with image already present
-    viewer = ViewerModel()
+    viewer = Viewer()
     np.random.seed(0)
     data = np.random.random((10, 15))
     viewer.add_image(data)
@@ -386,7 +386,7 @@ def test_new_shapes():
 
 def test_swappable_dims():
     """Test swapping dims after adding layers."""
-    viewer = ViewerModel()
+    viewer = Viewer()
     np.random.seed(0)
     image_data = np.random.random((7, 12, 10, 15))
     image_name = viewer.add_image(image_data).name
@@ -421,7 +421,7 @@ def test_swappable_dims():
 
 def test_grid():
     "Test grid_view"
-    viewer = ViewerModel()
+    viewer = Viewer()
 
     np.random.seed(0)
     # Add image
@@ -452,7 +452,7 @@ def test_grid():
 def test_add_remove_layer_dims_change():
     """Test dims change appropriately when adding and removing layers."""
     np.random.seed(0)
-    viewer = ViewerModel()
+    viewer = Viewer()
 
     # Check ndim starts at 2
     assert viewer.dims.ndim == 2
@@ -474,7 +474,7 @@ def test_add_remove_layer_dims_change():
 def test_add_layer_from_data(data):
     # make sure adding valid layer data calls the proper corresponding add_*
     # method for all layer types
-    viewer = ViewerModel()
+    viewer = Viewer()
     viewer._add_layer_from_data(*data)
 
     # make sure a layer of the correct type got added
@@ -485,7 +485,7 @@ def test_add_layer_from_data(data):
 
 def test_add_layer_from_data_raises():
     # make sure that adding invalid data or kwargs raises the right errors
-    viewer = ViewerModel()
+    viewer = Viewer()
     # unrecognized layer type raises Value Error
     with pytest.raises(ValueError, match='Unrecognized layer_type'):
         # (even though there is an add_layer method)
@@ -513,7 +513,7 @@ def test_add_layer_from_data_raises():
 
 def test_naming():
     """Test unique naming in LayerList."""
-    viewer = ViewerModel()
+    viewer = Viewer()
     viewer.add_image(np.random.random((10, 10)), name='img')
     viewer.add_image(np.random.random((10, 10)), name='img')
 
@@ -528,7 +528,7 @@ def test_naming():
 
 def test_selection():
     """Test only last added is selected."""
-    viewer = ViewerModel()
+    viewer = Viewer()
     viewer.add_image(np.random.random((10, 10)))
     assert viewer.layers[0] in viewer.layers.selection
 
@@ -545,7 +545,7 @@ def test_selection():
 
 def test_add_delete_layers():
     """Test adding and deleting layers with different dims."""
-    viewer = ViewerModel()
+    viewer = Viewer()
     np.random.seed(0)
     viewer.add_image(np.random.random((5, 5, 10, 15)))
     assert len(viewer.layers) == 1
@@ -560,7 +560,7 @@ def test_add_delete_layers():
 
 def test_active_layer():
     """Test active layer is correct as layer selections change."""
-    viewer = ViewerModel()
+    viewer = Viewer()
     np.random.seed(0)
     # Check no active layer present
     assert viewer.layers.selection.active is None
@@ -599,7 +599,7 @@ def test_active_layer():
 
 def test_active_layer_status_update():
     """Test status updates from active layer on cursor move."""
-    viewer = ViewerModel()
+    viewer = Viewer()
     np.random.seed(0)
     viewer.add_image(np.random.random((5, 5, 10, 15)))
     viewer.add_image(np.random.random((5, 6, 5, 10, 15)))
@@ -619,7 +619,7 @@ def test_active_layer_status_update():
 
 def test_active_layer_cursor_size():
     """Test cursor size update on active layer."""
-    viewer = ViewerModel()
+    viewer = Viewer()
     np.random.seed(0)
     viewer.add_image(np.random.random((10, 10)))
     # Base layer has a default cursor size of 1
@@ -637,7 +637,7 @@ def test_active_layer_cursor_size():
 
 def test_cursor_ndim_matches_layer():
     """Test cursor position ndim matches viewer ndim after update."""
-    viewer = ViewerModel()
+    viewer = Viewer()
     np.random.seed(0)
     im = viewer.add_image(np.random.random((10, 10)))
     assert viewer.dims.ndim == 2
@@ -655,7 +655,7 @@ def test_cursor_ndim_matches_layer():
 def test_sliced_world_extent():
     """Test world extent after adding layers and slicing."""
     np.random.seed(0)
-    viewer = ViewerModel()
+    viewer = Viewer()
 
     # Empty data is taken to be 512 x 512
     np.testing.assert_allclose(
@@ -694,7 +694,7 @@ def test_sliced_world_extent():
 
 def test_camera():
     """Test camera."""
-    viewer = ViewerModel()
+    viewer = Viewer()
     np.random.seed(0)
     data = np.random.random((10, 15, 20))
     viewer.add_image(data)
@@ -719,7 +719,7 @@ def test_camera():
 
 
 def test_update_scale():
-    viewer = ViewerModel()
+    viewer = Viewer()
     np.random.seed(0)
     shape = (10, 15, 20)
     data = np.random.random(shape)
@@ -735,7 +735,7 @@ def test_update_scale():
 @pytest.mark.parametrize(('Layer', 'data', 'ndim'), layer_test_data)
 def test_add_remove_layer_no_callbacks(Layer, data, ndim):
     """Test all callbacks for layer emmitters removed."""
-    viewer = ViewerModel()
+    viewer = Viewer()
 
     layer = Layer(data)
     # Check layer has been correctly created
@@ -766,7 +766,7 @@ def test_add_remove_layer_no_callbacks(Layer, data, ndim):
 @pytest.mark.parametrize(('Layer', 'data', 'ndim'), layer_test_data)
 def test_add_remove_layer_external_callbacks(Layer, data, ndim):
     """Test external callbacks for layer emmitters preserved."""
-    viewer = ViewerModel()
+    viewer = Viewer()
 
     layer = Layer(data)
     # Check layer has been correctly created
@@ -810,7 +810,7 @@ def test_add_remove_layer_external_callbacks(Layer, data, ndim):
 )
 def test_not_mutable_fields(field):
     """Test appropriate fields are not mutable."""
-    viewer = ViewerModel()
+    viewer = Viewer()
 
     # Check attribute lives on the viewer
     assert hasattr(viewer, field)
@@ -826,7 +826,7 @@ def test_not_mutable_fields(field):
 
 @pytest.mark.parametrize(('Layer', 'data', 'ndim'), layer_test_data)
 def test_status_tooltip(Layer, data, ndim):
-    viewer = ViewerModel()
+    viewer = Viewer()
     viewer.tooltip.visible = True
     layer = Layer(data)
     viewer.layers.append(layer)
@@ -834,14 +834,14 @@ def test_status_tooltip(Layer, data, ndim):
 
 
 def test_viewer_object_event_sources():
-    viewer = ViewerModel()
+    viewer = Viewer()
     assert viewer.cursor.events.source is viewer.cursor
     assert viewer.scene.camera.events.source is viewer.scene.camera
 
 
 def test_open_or_get_error_multiple_readers(tmp_plugin: DynamicPlugin):
     """Assert error is returned when multiple plugins are available to read."""
-    viewer = ViewerModel()
+    viewer = Viewer()
     tmp2 = tmp_plugin.spawn(register=True)
 
     @tmp_plugin.contribute.reader(filename_patterns=['*.fake'])
@@ -858,7 +858,7 @@ def test_open_or_get_error_multiple_readers(tmp_plugin: DynamicPlugin):
 
 def test_open_or_get_error_no_plugin():
     """Assert error is raised when no plugin is available."""
-    viewer = ViewerModel()
+    viewer = Viewer()
 
     with pytest.raises(
         NoAvailableReaderError, match='No plugin found capable of reading'
@@ -868,7 +868,7 @@ def test_open_or_get_error_no_plugin():
 
 def test_open_nonexistent_file():
     """Assert FileNotFoundError is raised for nonexistent local paths."""
-    viewer = ViewerModel()
+    viewer = Viewer()
 
     with pytest.raises(FileNotFoundError, match='does not exist'):
         viewer.open('/tmp/nonexistent_file_abc123.png')
@@ -879,7 +879,7 @@ def test_open_nonexistent_file():
 
 def test_open_or_get_error_builtins(builtins: DynamicPlugin, tmp_path):
     """Test builtins is available to read npy files."""
-    viewer = ViewerModel()
+    viewer = Viewer()
 
     f_pth = tmp_path / 'my-file.npy'
     data = np.random.random((10, 10))
@@ -897,7 +897,7 @@ def test_open_or_get_error_prefered_plugin(
     tmp_path, builtins: DynamicPlugin, tmp_plugin: DynamicPlugin
 ):
     """Test plugin preference is respected."""
-    viewer = ViewerModel()
+    viewer = Viewer()
     pth = tmp_path / 'my-file.npy'
     np.save(pth, np.random.random((10, 10)))
 
@@ -913,7 +913,7 @@ def test_open_or_get_error_prefered_plugin(
 
 def test_open_or_get_error_cant_find_plugin(tmp_path, builtins: DynamicPlugin):
     """Test user is warned and only plugin used if preferred plugin missing."""
-    viewer = ViewerModel()
+    viewer = Viewer()
     pth = tmp_path / 'my-file.npy'
     np.save(pth, np.random.random((10, 10)))
 
@@ -929,7 +929,7 @@ def test_open_or_get_error_no_prefered_plugin_many_available(
     tmp_plugin: DynamicPlugin,
 ):
     """Test MultipleReaderError raised if preferred plugin missing."""
-    viewer = ViewerModel()
+    viewer = Viewer()
     tmp2 = tmp_plugin.spawn(register=True)
 
     @tmp_plugin.contribute.reader(filename_patterns=['*.fake'])
@@ -950,7 +950,7 @@ def test_open_or_get_error_no_prefered_plugin_many_available(
 
 
 def test_open_or_get_error_preferred_fails(builtins, tmp_path):
-    viewer = ViewerModel()
+    viewer = Viewer()
     pth = tmp_path / 'my-file.npy'
 
     get_settings().plugins.extension2reader = {'*.npy': builtins.name}
@@ -963,7 +963,7 @@ def test_open_or_get_error_preferred_fails(builtins, tmp_path):
 
 def test_open_sample_invalid_layer_data_tuple(tmp_plugin):
     """Test that sample returning malformed layer data tuple raises error."""
-    viewer = ViewerModel()
+    viewer = Viewer()
 
     @tmp_plugin.contribute.sample_data
     def return_invalid_ldt():
@@ -977,7 +977,7 @@ def test_open_sample_invalid_layer_data_tuple(tmp_plugin):
 
 def test_open_sample_null_layer_sentinel(tmp_plugin):
     """Test that sample returning null layer sentinel raises error."""
-    viewer = ViewerModel()
+    viewer = Viewer()
 
     @tmp_plugin.contribute.sample_data
     def return_null_layer():
@@ -991,7 +991,7 @@ def test_open_sample_null_layer_sentinel(tmp_plugin):
 
 
 def test_slice_order_with_mixed_dims():
-    viewer = ViewerModel(ndisplay=2)
+    viewer = Viewer(ndisplay=2)
     image_2d = viewer.add_image(np.zeros((4, 5)))
     image_3d = viewer.add_image(np.zeros((3, 4, 5)))
     image_4d = viewer.add_image(np.zeros((2, 3, 4, 5)))
@@ -1013,7 +1013,7 @@ def test_slice_order_with_mixed_dims():
 
 def test_make_layer_visible_after_slicing():
     """See https://github.com/napari/napari/issues/6760"""
-    viewer = ViewerModel(ndisplay=2)
+    viewer = Viewer(ndisplay=2)
     data = np.array([np.ones((2, 2)) * i for i in range(3)])
     layer: Image = viewer.add_image(data)
     layer.visible = False
@@ -1027,7 +1027,7 @@ def test_make_layer_visible_after_slicing():
 
 
 def test_get_status_text():
-    viewer = ViewerModel(ndisplay=2)
+    viewer = Viewer(ndisplay=2)
     viewer.mouse_over_canvas = False
     assert viewer._calc_status_from_cursor() is None
     viewer.mouse_over_canvas = True
@@ -1080,7 +1080,7 @@ def test_get_status_text():
 
 def test_reset_view():
     """Test camera angle behavior after a viewer reset."""
-    viewer = ViewerModel(ndisplay=3)
+    viewer = Viewer(ndisplay=3)
     viewer.add_image(np.random.random((10, 10, 10)))
     viewer.scene.camera.angles = (45, 30, 60)
     viewer.reset_view()
@@ -1093,7 +1093,7 @@ def test_reset_view():
 
 def test_fit_to_view_margin():
     """Test fit_to_view with different margin values."""
-    viewer = ViewerModel()
+    viewer = Viewer()
     viewer.add_image(np.random.random((10, 10)))
 
     # Reset view with default margin (0.05)
@@ -1123,7 +1123,7 @@ def test_fit_to_view_margin():
 )
 def test_fit_to_view_center_calculation(ndisplay, expected_center):
     """Test correct center calculation for different dimensions after fit_to_view."""
-    viewer = ViewerModel(ndisplay=ndisplay)
+    viewer = Viewer(ndisplay=ndisplay)
     data = np.random.random((5, 10, 30, 20))
     viewer.add_image(data)
 
@@ -1137,7 +1137,7 @@ def test_fit_to_view_center_calculation(ndisplay, expected_center):
 
 def test_fit_to_view_2d_data_in_3d_view():
     """Test fit_to_view with 2D data and ndisplay=3."""
-    viewer = ViewerModel(ndisplay=3)
+    viewer = Viewer(ndisplay=3)
     viewer.add_image(np.random.random((10, 20)))
     viewer.scene.camera.angles = (45, 30, 60)
     viewer.scene.camera.center = (0, 0, 0)
@@ -1150,7 +1150,7 @@ def test_fit_to_view_2d_data_in_3d_view():
 def test_synced_camera():
     """Test synced mode center/zoom persistence and dims slider sync."""
     np.random.seed(0)
-    viewer = ViewerModel()
+    viewer = Viewer()
     viewer.add_image(np.random.random((11, 11, 11)))
     viewer.dims.current_step = (2, 0, 0)
 
@@ -1187,7 +1187,7 @@ def test_synced_camera():
 
 def test_separate_camera_cache_round_trip():
     """Test that separate mode (synced=False) preserves independent state for 2D and 3D."""
-    viewer = ViewerModel()
+    viewer = Viewer()
     viewer.scene.camera.synced = False
     np.random.seed(0)
     viewer.add_image(np.random.random((11, 11, 11)))
@@ -1230,7 +1230,7 @@ def test_separate_camera_toggle_off_after_synced_navigation():
     of ``_on_ndisplay_changed``, so the cache would associate the wrong
     ndisplay mode with the captured state when sync was later turned off.
     """
-    viewer = ViewerModel()
+    viewer = Viewer()
     np.random.seed(0)
     viewer.add_image(np.random.random((11, 11, 11)))
 
@@ -1261,7 +1261,7 @@ def test_separate_camera_toggle_off_after_synced_navigation():
 
 def test_fit_to_view_handles_no_layers():
     """Test fit_to_view with no layers."""
-    viewer = ViewerModel()
+    viewer = Viewer()
     # Reset view should not raise errors when no layers are present
     viewer.fit_to_view()
     # Default values should be set
@@ -1272,7 +1272,7 @@ def test_fit_to_view_handles_no_layers():
 
 def test_new_shapes_points_axis_labels_inheritance_on_no_selection():
     """New shapes/points layer created with no active layer gets default axis labels."""
-    viewer = ViewerModel()
+    viewer = Viewer()
     viewer.add_image(np.zeros((2, 2, 2)), axis_labels=('a', 'b', 'c'))
     viewer.layers.selection.active = None
     new_shapes(viewer)
@@ -1283,7 +1283,7 @@ def test_new_shapes_points_axis_labels_inheritance_on_no_selection():
 
 def test_new_shapes_points_axis_labels_inheritance_on_multi_selection():
     """New shapes/points layer created with  multiple layers selected gets default axis labels."""
-    viewer = ViewerModel()
+    viewer = Viewer()
     layer1 = viewer.add_image(np.zeros((2, 2, 2)), axis_labels=('a', 'b', 'c'))
     layer2 = viewer.add_image(np.zeros((2, 2, 2)), axis_labels=('a', 'b', 'c'))
     viewer.layers.selection = {layer1, layer2}
@@ -1293,7 +1293,7 @@ def test_new_shapes_points_axis_labels_inheritance_on_multi_selection():
 
 def test_new_shapes_points_axis_labels_inheritance_on_single_selection():
     """New shapes/points layer created from a single selected layer inherits its axis labels."""
-    viewer = ViewerModel()
+    viewer = Viewer()
     # test from image layer selection
     image_layer = viewer.add_image(
         np.zeros((2, 2, 2)), axis_labels=('a', 'b', 'c')
@@ -1315,7 +1315,7 @@ def test_new_shapes_points_axis_labels_inheritance_on_single_selection():
 
 def test_new_labels_axis_labels_inheritance_on_no_selection():
     """New labels layer created with no active layer gets default axis labels."""
-    viewer = ViewerModel()
+    viewer = Viewer()
     viewer.add_image(np.zeros((2, 2, 2)), axis_labels=('a', 'b', 'c'))
     viewer.layers.selection.active = None
     viewer._new_labels()
@@ -1324,7 +1324,7 @@ def test_new_labels_axis_labels_inheritance_on_no_selection():
 
 def test_new_labels_axis_labels_inheritance_on_multi_selection():
     """New labels layer created with with multiple layers selected gets default axis labels."""
-    viewer = ViewerModel()
+    viewer = Viewer()
     layer1 = viewer.add_image(np.zeros((2, 2)), axis_labels=('a', 'b'))
     layer2 = viewer.add_image(np.zeros((2, 2, 2)), axis_labels=('a', 'b', 'c'))
     viewer.layers.selection = {layer1, layer2}
@@ -1334,7 +1334,7 @@ def test_new_labels_axis_labels_inheritance_on_multi_selection():
 
 def test_new_labels_axis_labels_inheritance_on_single_selection():
     """New labels layer created from a single selected layer inherits its axis labels."""
-    viewer = ViewerModel()
+    viewer = Viewer()
     # test from image layer selection (image→labels)
     image_layer = viewer.add_image(
         np.zeros((2, 2, 2)), axis_labels=('a', 'b', 'c')

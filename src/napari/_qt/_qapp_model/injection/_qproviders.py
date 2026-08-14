@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 from napari import components, layers, viewer
 from napari._app_model import get_app_model
 from napari.utils._proxies import PublicOnlyProxy
-from napari.viewer import ViewerModel
+from napari.components.viewer_model import Viewer
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -28,7 +28,7 @@ def _provide_viewer(public_proxy: bool = True) -> viewer.Viewer | None:
     return None
 
 
-def _provide_viewer_model(public_proxy: bool = True) -> ViewerModel | None:
+def _provide_viewer_model(public_proxy: bool = True) -> Viewer | None:
     """Provide a Viewer (subclass of ViewerModel) if ViewerModel is needed."""
     return _provide_viewer(public_proxy)
 

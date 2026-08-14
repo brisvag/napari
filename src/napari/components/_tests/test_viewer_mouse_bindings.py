@@ -3,7 +3,7 @@ from unittest.mock import Mock
 import numpy as np
 import pytest
 
-from napari.components import ViewerModel
+from napari.components import Viewer
 from napari.components._viewer_mouse_bindings import (
     double_click_to_zoom,
     drag_to_zoom,
@@ -38,7 +38,7 @@ class WheelEvent:
 )
 def test_paint(modifiers, native, expected_dim):
     """Test painting labels with circle/square brush."""
-    viewer = ViewerModel()
+    viewer = Viewer()
     data = np.random.random((10, 10, 10))
     viewer.add_image(data)
     viewer.dims.last_used = 0
@@ -84,7 +84,7 @@ def test_paint(modifiers, native, expected_dim):
     ],
 )
 def test_double_click_to_zoom(layer_shape):
-    viewer = ViewerModel()
+    viewer = Viewer()
     data = np.zeros(layer_shape)
     viewer.add_image(data)
 
@@ -141,7 +141,7 @@ def test_double_click_to_zoom(layer_shape):
 
 
 def test_layers_scroll_selection():
-    viewer = ViewerModel()
+    viewer = Viewer()
     data = np.zeros((10, 10))
     viewer.add_image(data)
     viewer.add_image(data)
@@ -174,7 +174,7 @@ def test_layers_scroll_selection():
 
 
 def test_drag_to_zoom_only_in_pan_zoom_mode():
-    viewer = ViewerModel()
+    viewer = Viewer()
     viewer.add_points(np.array([[0, 0]]))
     viewer.layers.selection.active.mode = 'add'
 

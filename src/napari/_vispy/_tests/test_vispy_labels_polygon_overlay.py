@@ -3,7 +3,7 @@ import pytest
 
 from napari._vispy.overlays.labels_polygon import VispyLabelsPolygonOverlay
 from napari._vispy.utils.qt_font import FontInfo
-from napari.components import ViewerModel
+from napari.components import Viewer
 from napari.layers.labels._labels_key_bindings import complete_polygon
 from napari.utils.interactions import (
     mouse_move_callbacks,
@@ -22,7 +22,7 @@ def patch_gloo_set_state(monkeypatch):
 @pytest.mark.usefixtures('patch_gloo_set_state')
 @pytest.mark.usefixtures('qapp')
 def test_vispy_labels_polygon_overlay():
-    viewer = ViewerModel()
+    viewer = Viewer()
 
     data = np.zeros((50, 50), dtype=int)
     layer = viewer.add_labels(data, opacity=0.5)
@@ -64,7 +64,7 @@ def test_labels_drawing_with_polygons(MouseEvent):
     # viewer = make_napari_viewer()
 
     data = np.zeros((3, 15, 15), dtype=np.int32)
-    viewer = ViewerModel()
+    viewer = Viewer()
     layer = viewer.add_labels(data)
 
     vispy_labels_polygon = VispyLabelsPolygonOverlay(
@@ -176,7 +176,7 @@ def test_labels_polygon_with_downsampling(monkeypatch):
         lambda: (256, 256),
     )
 
-    viewer = ViewerModel()
+    viewer = Viewer()
 
     # Create a labels layer that will be downsampled
     shape = (600, 500)

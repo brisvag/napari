@@ -12,7 +12,7 @@ from napari._qt._qapp_model.injection._qprocessors import (
     _add_layer_to_viewer,
     _add_plugin_dock_widget,
 )
-from napari.components import ViewerModel
+from napari.components import Viewer
 from napari.layers import Image
 from napari.types import ImageData, LabelsData
 
@@ -41,7 +41,7 @@ def test_add_layer_data_tuples_to_viewer_invalid_data():
 
 
 def test_add_layer_data_tuples_to_viewer_valid_data():
-    viewer = ViewerModel()
+    viewer = Viewer()
     valid_data = [
         (np.zeros((10, 10)), {'name': 'layer1'}, 'image'),
         (np.zeros((10, 20)), {'name': 'layer1'}, 'image'),
@@ -72,7 +72,7 @@ def test_add_layer_data_to_viewer_return_type():
 
 
 def test_add_layer_data_to_viewer():
-    viewer = ViewerModel()
+    viewer = Viewer()
     _add_layer_data_to_viewer(
         data=np.zeros((10, 10)),
         return_type=Optional[ImageData],
@@ -94,7 +94,7 @@ def test_add_layer_data_to_viewer():
 def test_add_layer_to_viewer():
     layer1 = Image(np.zeros((10, 10)))
     layer2 = Image(np.zeros((10, 10)))
-    viewer = ViewerModel()
+    viewer = Viewer()
     _add_layer_to_viewer(None)
     assert len(viewer.layers) == 0
     _add_layer_to_viewer(layer1, viewer=viewer)

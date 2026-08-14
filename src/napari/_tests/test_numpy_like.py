@@ -4,12 +4,12 @@ import xarray as xr
 import zarr
 from numpy.testing import assert_array_equal
 
-from napari.components.viewer_model import ViewerModel
+from napari.components.viewer_model import Viewer
 
 
 def test_dask_2D():
     """Test adding 2D dask image."""
-    viewer = ViewerModel()
+    viewer = Viewer()
 
     da.random.seed(0)
     data = da.random.random((10, 15))
@@ -19,7 +19,7 @@ def test_dask_2D():
 
 def test_dask_nD():
     """Test adding nD dask image."""
-    viewer = ViewerModel()
+    viewer = Viewer()
 
     da.random.seed(0)
     data = da.random.random((10, 15, 6, 16))
@@ -29,7 +29,7 @@ def test_dask_nD():
 
 def test_zarr_2D():
     """Test adding 2D zarr image."""
-    viewer = ViewerModel()
+    viewer = Viewer()
 
     data = zarr.zeros((200, 100), chunks=(40, 20))
     data[53:63, 10:20] = 1
@@ -40,7 +40,7 @@ def test_zarr_2D():
 
 def test_zarr_nD():
     """Test adding nD zarr image."""
-    viewer = ViewerModel()
+    viewer = Viewer()
 
     data = zarr.zeros((200, 100, 50), chunks=(40, 20, 10))
     data[53:63, 10:20, :] = 1
@@ -51,7 +51,7 @@ def test_zarr_nD():
 
 def test_zarr_dask_2D():
     """Test adding 2D dask image."""
-    viewer = ViewerModel()
+    viewer = Viewer()
 
     data = zarr.zeros((200, 100), chunks=(40, 20))
     data[53:63, 10:20] = 1
@@ -62,7 +62,7 @@ def test_zarr_dask_2D():
 
 def test_zarr_dask_nD():
     """Test adding nD zarr image."""
-    viewer = ViewerModel()
+    viewer = Viewer()
 
     data = zarr.zeros((200, 100, 50), chunks=(40, 20, 10))
     data[53:63, 10:20, :] = 1
@@ -73,7 +73,7 @@ def test_zarr_dask_nD():
 
 def test_xarray_2D():
     """Test adding 2D xarray image."""
-    viewer = ViewerModel()
+    viewer = Viewer()
 
     np.random.seed(0)
     data = np.random.random((10, 15))
@@ -84,7 +84,7 @@ def test_xarray_2D():
 
 def test_xarray_nD():
     """Test adding nD xarray image."""
-    viewer = ViewerModel()
+    viewer = Viewer()
 
     np.random.seed(0)
     data = np.random.random((10, 15, 6, 16))

@@ -1,12 +1,12 @@
 from napari._vispy.overlays.brush_circle import VispyBrushCircleOverlay
 from napari._vispy.utils.qt_font import FontInfo
-from napari.components import ViewerModel
+from napari.components import Viewer
 from napari.components.overlays import BrushCircleOverlay
 
 
 def test_vispy_brush_circle_overlay():
     brush_circle_model = BrushCircleOverlay()
-    viewer = ViewerModel()
+    viewer = Viewer()
 
     vispy_brush_circle = VispyBrushCircleOverlay(
         viewer=viewer, overlay=brush_circle_model, font_info=FontInfo()

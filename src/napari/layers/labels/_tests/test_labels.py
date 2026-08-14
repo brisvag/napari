@@ -16,7 +16,7 @@ from packaging.version import parse as parse_version
 from skimage import data as sk_data
 
 from napari._tests.utils import check_layer_world_data_extent
-from napari.components import ViewerModel
+from napari.components import Viewer
 from napari.components.dims import Dims
 from napari.layers import Labels
 from napari.layers.labels._labels_constants import LabelsRendering
@@ -639,7 +639,7 @@ def test_contour_large_new_labels():
     [1]: https://forum.image.sc/t/data-specific-reason-for-indexerror-in-raw-to-displayed/60808
     [2]: https://github.com/napari/napari/pull/3697
     """
-    viewer = ViewerModel()
+    viewer = Viewer()
 
     labels = np.zeros((5, 10, 10), dtype=int)
     labels[0, 4:6, 4:6] = 1

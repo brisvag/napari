@@ -8,7 +8,7 @@ from typing import Any, overload
 
 from napari.components.dims import Dims
 from napari.layers import Image
-from napari.viewer import Viewer
+from napari.components.viewer_model import Viewer
 
 __all__ = ['imshow']
 

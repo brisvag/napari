@@ -79,7 +79,7 @@ if TYPE_CHECKING:
 
     from napari._qt.layer_controls import QtLayerControlsContainer
     from napari._vispy.layers.base import VispyBaseLayer
-    from napari.components import ViewerModel
+    from napari.components import Viewer
     from napari.utils.events import Event
 
 _LayerTypeName = Literal[
@@ -155,7 +155,7 @@ class QtViewer(QSplitter):
 
     def __init__(
         self,
-        viewer: ViewerModel,
+        viewer: Viewer,
         show_welcome_screen: bool = False,
         canvas_class: type[VispyCanvas] = VispyCanvas,
         tips: Sequence[str] | None = None,

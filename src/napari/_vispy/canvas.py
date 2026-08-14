@@ -52,7 +52,7 @@ if TYPE_CHECKING:
         VispyBaseOverlay,
         VispyCanvasOverlay,
     )
-    from napari.components import ViewerModel
+    from napari.components import Viewer
     from napari.components.overlays import Overlay
     from napari.layers import Layer
     from napari.utils.key_bindings import KeymapHandler
@@ -176,7 +176,7 @@ class VispyCanvas:
 
     def __init__(
         self,
-        viewer: ViewerModel,
+        viewer: Viewer,
         key_map_handler: KeymapHandler,
         font_manager: QtFontManager,
         font_family: str,
