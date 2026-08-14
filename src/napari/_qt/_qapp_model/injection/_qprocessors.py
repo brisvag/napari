@@ -19,7 +19,7 @@ from typing import (
 from magicgui.widgets import FunctionGui, Widget
 from qtpy.QtWidgets import QWidget
 
-from napari import layers, types, viewer
+from napari import layers, types
 from napari._qt._qapp_model.injection._qproviders import (
     _provide_viewer,
     _provide_viewer_or_raise,
@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 
 def _add_plugin_dock_widget(
     widget_name_tuple: tuple[FunctionGui | QWidget | Widget, str],
-    viewer: viewer.Viewer | None = None,
+    viewer: Viewer | None = None,
 ) -> None:
     if viewer is None:
         viewer = _provide_viewer_or_raise(
@@ -45,7 +45,7 @@ def _add_plugin_dock_widget(
 def _add_layer_data_tuples_to_viewer(
     data: tuple | list[tuple],
     return_type: Any | None = None,
-    viewer: viewer.Viewer | None = None,
+    viewer: Viewer | None = None,
     source: dict | None = None,
 ) -> None:
     from napari.utils.misc import ensure_list_of_layer_data_tuple
@@ -71,7 +71,7 @@ def _add_layer_data_tuples_to_viewer(
 def _add_layer_data_to_viewer(
     data: Any,
     return_type: Any,
-    viewer: viewer.Viewer | None = None,
+    viewer: Viewer | None = None,
     layer_name: str | None = None,
     source: dict | None = None,
     meta: dict | None = None,
@@ -131,7 +131,7 @@ def _add_layer_data_to_viewer(
 
 def _add_layer_to_viewer(
     layer: layers.Layer,
-    viewer: viewer.Viewer | None = None,
+    viewer: Viewer | None = None,
     source: dict | None = None,
 ) -> None:
     if layer is not None and (viewer := viewer or _provide_viewer()):
@@ -147,7 +147,7 @@ def _add_future_data(
     future: Future,
     return_type: Any,
     _from_tuple: bool = True,
-    viewer: viewer.Viewer | None = None,
+    viewer: Viewer | None = None,
     source: dict | None = None,
 ) -> None:
     """Process a Future object.

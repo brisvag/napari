@@ -82,17 +82,16 @@ _proto_all_ = [
     'layers',
     'qt',
     'types',
-    'viewer',
     'utils',
 ]
 
 _submod_attrs = {
     '_event_loop': ['run'],
+    'components': ['Viewer', 'current_viewer'],
     'plugins.io': ['save_layers'],
     'utils': ['sys_info'],
     'utils.notifications': ['notification_manager'],
     'view_layers': ['imshow'],
-    'viewer': ['Viewer', 'current_viewer'],
 }
 
 # All imports in __init__ are hidden inside of `__getattr__` to prevent

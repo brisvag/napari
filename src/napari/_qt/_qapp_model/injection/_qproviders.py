@@ -7,9 +7,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from napari import components, layers, viewer
+from napari import components, layers
 from napari._app_model import get_app_model
-from napari.components.viewer import Viewer
+from napari.components.viewer import Viewer, current_viewer
 from napari.utils._proxies import PublicOnlyProxy
 
 if TYPE_CHECKING:
@@ -19,9 +19,9 @@ if TYPE_CHECKING:
     from napari._qt.qt_viewer import QtViewer
 
 
-def _provide_viewer(public_proxy: bool = True) -> viewer.Viewer | None:
+def _provide_viewer(public_proxy: bool = True) -> Viewer | None:
     """Provide `PublicOnlyProxy` (allows internal napari access) of current viewer."""
-    if current_viewer := viewer.current_viewer():
+    if current_viewer := current_viewer():
         if public_proxy:
             return PublicOnlyProxy(current_viewer)
         return current_viewer
@@ -35,7 +35,7 @@ def _provide_viewer(public_proxy: bool = True) -> Viewer | None:
 
 def _provide_viewer_or_raise(
     msg: str = '', public_proxy: bool = False
-) -> viewer.Viewer:
+) -> Viewer:
     viewer = _provide_viewer(public_proxy)
     if viewer:
         return viewer

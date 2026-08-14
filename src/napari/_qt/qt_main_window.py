@@ -4,6 +4,7 @@ wrap.
 """
 
 from __future__ import annotations
+from napari.components.multiviewer import MultiViewer
 
 import atexit
 import contextlib
@@ -717,7 +718,7 @@ class Window:
 
     def __init__(
         self,
-        viewer: Viewer,
+        viewer: MultiViewer,
         *,
         show: bool = True,
         show_welcome_screen: bool = True,

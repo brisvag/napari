@@ -16,6 +16,7 @@ Viewer
 
 # Note that importing _viewer_key_bindings is needed as the Viewer gets
 # decorated with keybindings during that process
+from napari.components.viewer import current_viewer
 from napari.components._viewer_key_bindings import Viewer
 from napari.components.camera import Camera
 from napari.components.dims import Dims
