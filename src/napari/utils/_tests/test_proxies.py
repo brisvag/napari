@@ -4,7 +4,7 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 
-from napari.components.viewer_model import ViewerModel
+from napari.components.viewer import Viewer
 from napari.utils._proxies import PublicOnlyProxy, ReadOnlyWrapper
 from napari.utils.events.containers._set import EventedSet
 
@@ -104,7 +104,7 @@ def test_thread_proxy_guard(monkeypatch, single_threaded_executor):
 @pytest.mark.usefixtures('_patched_root_dir')
 def test_public_proxy_limited_to_napari():
     """Test that the recursive public proxy goes no farther than napari."""
-    viewer = ViewerModel()
+    viewer = Viewer()
     viewer.add_points(None)
     pv = PublicOnlyProxy(viewer)
     assert not isinstance(pv.layers[0].data, PublicOnlyProxy)
@@ -113,7 +113,7 @@ def test_public_proxy_limited_to_napari():
 @pytest.mark.usefixtures('_patched_root_dir')
 def test_array_from_proxy_objects():
     """Test that the recursive public proxy goes no farther than napari."""
-    viewer = ViewerModel()
+    viewer = Viewer()
     viewer.add_points(None)
     pv = PublicOnlyProxy(viewer)
     assert isinstance(np.array(pv.dims.displayed, dtype=int), np.ndarray)
@@ -121,7 +121,7 @@ def test_array_from_proxy_objects():
 
 def test_receive_return_proxy_object():
     """Test that an"""
-    viewer = ViewerModel()
+    viewer = Viewer()
     viewer.add_image(np.random.random((20, 20)))
     pv = PublicOnlyProxy(viewer)
 
@@ -139,7 +139,7 @@ def test_receive_return_proxy_object():
 
 
 def test_viewer_method():
-    viewer = PublicOnlyProxy(ViewerModel())
+    viewer = PublicOnlyProxy(Viewer())
     assert viewer.add_points() is not None
 
 

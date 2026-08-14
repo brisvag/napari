@@ -159,7 +159,7 @@ def test_open_sample_data_shows_all_readers(
     # Ensure that `handle_gui_reading`` is not passed the sample plugin name
     with (
         mock.patch(
-            'napari.components.viewer_model._validate_paths_exist',
+            'napari.components.viewer._validate_paths_exist',
         ),
         mock.patch(
             'napari._qt.dialogs.qt_reader_dialog.handle_gui_reading'
@@ -176,7 +176,7 @@ def test_open_sample_data_shows_all_readers(
 
 # qt_viewer fixture is used to ensure proper teardown procedure and prevent leaked QtWidgets at the beginning of `make_napari_viewer` fixture.
 def test_open_with_dialog_choices_persist(
-    builtins, tmp_path, qt_viewer, viewer_model
+    builtins, tmp_path, qt_viewer, viewer
 ):
     pth = tmp_path / 'my-file.npy'
     rng = np.random.default_rng(0)
@@ -191,14 +191,14 @@ def test_open_with_dialog_choices_persist(
         stack=False,
         qt_viewer=qt_viewer,
     )
-    assert len(viewer_model.layers) == 1
+    assert len(viewer.layers) == 1
     # make sure extension was saved with *
     assert get_settings().plugins.extension2reader['*.npy'] == builtins.name
 
 
 # qt_viewer fixture is used to ensure proper teardown procedure and prevent leaked QtWidgets at the beginning of `make_napari_viewer` fixture.
 def test_open_with_dialog_choices_persist_dir(
-    builtins, tmp_path, qt_viewer, viewer_model
+    builtins, tmp_path, qt_viewer, viewer
 ):
     pth = tmp_path / 'data.zarr'
     rng = np.random.default_rng(0)
@@ -217,7 +217,7 @@ def test_open_with_dialog_choices_persist_dir(
         stack=False,
         qt_viewer=qt_viewer,
     )
-    assert len(viewer_model.layers) == 1
+    assert len(viewer.layers) == 1
     # make sure extension was saved without * and with trailing slash
     assert (
         get_settings().plugins.extension2reader[f'{pth}{os.sep}']

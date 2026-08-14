@@ -1,8 +1,8 @@
 import napari.utils.notifications
 from napari._qt.qt_event_loop import run
+from napari.components.viewer import Viewer, current_viewer
 from napari.plugins.io import save_layers
 from napari.view_layers import imshow
-from napari.viewer import Viewer, current_viewer
 
 __version__: str
 

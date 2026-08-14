@@ -17,7 +17,7 @@ from napari._app_model.actions._view import (
 )
 from napari._app_model.constants import MenuId
 from napari._tests.utils import skip_local_focus, skip_local_popups
-from napari.viewer import ViewerModel
+from napari.components.viewer import Viewer
 
 
 def check_windows_style(viewer):
@@ -66,7 +66,7 @@ def test_toggle_axes_scale_bar_attr(action_id, action_title, attribute_path):
         * `ticks`
     """
     app = get_app_model()
-    viewer = ViewerModel()
+    viewer = Viewer()
 
     # Get viewer attribute to check (`axes` or `scale_bar`)
     *parent_path, attr_name = attribute_path.split('.')
@@ -76,7 +76,7 @@ def test_toggle_axes_scale_bar_attr(action_id, action_title, attribute_path):
     initial_value = getattr(parent, attr_name)
 
     # Change sub-attribute via action command execution and check value
-    with app.injection_store.register(providers={ViewerModel: viewer}):
+    with app.injection_store.register(providers={Viewer: viewer}):
         app.commands.execute_command(action_id)
 
     changed_value = getattr(parent, attr_name)
@@ -374,7 +374,7 @@ def test_zoom_actions(make_napari_viewer):
 @pytest.mark.parametrize(('initial', 'expected'), [(3, 2), (2, 3)])
 def test_toggle_canvas_ndim(initial, expected):
     """Check that _toggle_canvas_ndim toggles the canvas ndims."""
-    viewer = ViewerModel()
+    viewer = Viewer()
     viewer.dims.ndisplay = initial
     _toggle_canvas_ndim(viewer)
     assert viewer.dims.ndisplay == expected

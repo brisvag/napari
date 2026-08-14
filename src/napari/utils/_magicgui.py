@@ -30,8 +30,8 @@ if TYPE_CHECKING:
     from magicgui.widgets.bases import CategoricalWidget
 
     from napari._qt.qthreading import FunctionWorker
+    from napari.components.viewer import Viewer
     from napari.layers import Layer
-    from napari.viewer import Viewer
 
 
 def _get_layer_from_widget(gui: ComboBox, viewer: Viewer) -> Layer | None:
@@ -387,7 +387,7 @@ def find_viewer_ancestor(widget) -> Viewer | None:
         parent = widget.native.parent()
     else:
         parent = widget.parent()
-    from napari.viewer import current_viewer
+    from napari.components.viewer import current_viewer
 
     while parent:
         if hasattr(parent, '_qt_viewer'):  # QMainWindow

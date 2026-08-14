@@ -71,7 +71,7 @@ def validate_unknown_args(unknown: list[str]) -> dict[str, Any]:
         is a ``literal_eval`` result, or string.
     """
 
-    from napari.components.viewer_model import valid_add_kwargs
+    from napari.components.viewer import valid_add_kwargs
 
     out: dict[str, Any] = {}
     valid = set.union(*valid_add_kwargs().values())
@@ -102,7 +102,7 @@ def parse_sys_argv():
     """Parse command line arguments."""
 
     from napari import __version__, layers
-    from napari.components.viewer_model import valid_add_kwargs
+    from napari.components.viewer import valid_add_kwargs
 
     kwarg_options = []
     for layer_type, keys in valid_add_kwargs().items():

@@ -4,13 +4,13 @@ from imageio import imwrite
 from scipy import ndimage as ndi
 from skimage.data import binary_blobs
 
-from napari.components import ViewerModel
+from napari.components import Viewer
 from napari.layers import Labels
 
 
 @pytest.mark.parametrize('suffix', ['.png', '.tiff'])
 def test_open_labels(builtins, suffix, tmp_path):
-    viewer = ViewerModel()
+    viewer = Viewer()
     blobs = binary_blobs(length=128, volume_fraction=0.1, n_dim=2)
     labeled = ndi.label(blobs)[0].astype(np.uint8)
 

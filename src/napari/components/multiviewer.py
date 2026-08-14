@@ -23,7 +23,7 @@ from napari import layers
 from napari._pydantic_compat import Extra, Field, PrivateAttr, validator
 from napari.components._layer_slicer import _LayerSlicer
 from napari.components.tooltip import Tooltip
-from napari.components.viewer_model import ViewerModel
+from napari.components.viewer import Viewer
 from napari.errors import (
     MultipleReaderError,
     NoAvailableReaderError,
@@ -100,8 +100,8 @@ def _current_theme() -> str:
 
 # KeymapProvider & MousemapProvider should eventually be moved off the ViewerModel
 class MultiViewer(KeymapProvider, MousemapProvider, EventedModel):
-    views: SelectableEventedList[ViewerModel] = Field(
-        default_factory=SelectableEventedList[ViewerModel],
+    views: SelectableEventedList[Viewer] = Field(
+        default_factory=SelectableEventedList[Viewer],
         allow_mutation=False,
     )
     # Using allow_mutation=False means these attributes aren't settable and don't
@@ -135,7 +135,7 @@ class MultiViewer(KeymapProvider, MousemapProvider, EventedModel):
         self.__config__.extra = Extra.ignore
 
         self.views.append(
-            ViewerModel(
+            Viewer(
                 title=title,
                 axis_labels=axis_labels,
                 ndisplay=ndisplay,
@@ -1425,7 +1425,7 @@ def prune_kwargs(kwargs: Mapping[str, Any], layer_type: str) -> dict[str, Any]:
     >>> prune_kwargs(test_kwargs, 'points')
     {'scale': (0.75, 1), 'blending': 'additive', 'size': 10}
     """
-    add_method = getattr(ViewerModel, 'add_' + layer_type, None)
+    add_method = getattr(Viewer, 'add_' + layer_type, None)
     if not add_method or layer_type == 'layer':
         raise ValueError(
             trans._(
@@ -1444,10 +1444,10 @@ def prune_kwargs(kwargs: Mapping[str, Any], layer_type: str) -> dict[str, Any]:
 def valid_add_kwargs() -> dict[str, set[str]]:
     """Return a dict where keys are layer types & values are valid kwargs."""
     valid = {}
-    for meth in dir(ViewerModel):
+    for meth in dir(Viewer):
         if not meth.startswith('add_') or meth[4:] == 'layer':
             continue
-        params = inspect.signature(getattr(ViewerModel, meth)).parameters
+        params = inspect.signature(getattr(Viewer, meth)).parameters
         valid[meth[4:]] = set(params) - {'self', 'kwargs'}
     return valid
 
@@ -1461,4 +1461,4 @@ for _layer in (
     layers.Vectors,
 ):
     func = create_add_method(_layer)
-    setattr(ViewerModel, func.__name__, func)
+    setattr(Viewer, func.__name__, func)

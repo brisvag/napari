@@ -79,7 +79,7 @@ if TYPE_CHECKING:
 
     from napari._qt.layer_controls import QtLayerControlsContainer
     from napari._vispy.layers.base import VispyBaseLayer
-    from napari.components import ViewerModel
+    from napari.components import Viewer
     from napari.utils.events import Event
 
 _LayerTypeName = Literal[
@@ -155,7 +155,7 @@ class QtViewer(QSplitter):
 
     def __init__(
         self,
-        viewer: ViewerModel,
+        viewer: Viewer,
         show_welcome_screen: bool = False,
         canvas_class: type[VispyCanvas] = VispyCanvas,
         tips: Sequence[str] | None = None,
@@ -949,7 +949,7 @@ class QtViewer(QSplitter):
             ) from e
 
         if fit_to_data_extent:
-            # Use the same scene parameter calculations as in viewer_model.fit_to_view
+            # Use the same scene parameter calculations as in viewer.fit_to_view
             ndisplay = self.viewer.dims.ndisplay
             extent, scene_size, _ = self.viewer._get_scene_parameters()
             extent_scale = min(self.viewer.layers.extent.step[-ndisplay:])

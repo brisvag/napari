@@ -7,7 +7,7 @@ import pytest
 import xarray as xr
 
 from napari import layers
-from napari.components import ViewerModel
+from napari.components import Viewer
 from napari.utils import _dask_utils, resize_dask_cache
 
 
@@ -155,7 +155,7 @@ def test_dask_global_optimized_slicing(delayed_dask_stack, monkeypatch):
     """Test that dask_configure reduces compute with dask stacks."""
 
     # add dask stack to the viewer, making sure to pass multiscale and clims
-    v = ViewerModel()
+    v = Viewer()
     dask_stack = delayed_dask_stack['stack']
     layer = v.add_image(dask_stack)
     # the first and the middle stack will be loaded
@@ -199,7 +199,7 @@ def test_dask_unoptimized_slicing(delayed_dask_stack, monkeypatch):
     assert _dask_utils._DASK_CACHE.cache.available_bytes == 10000
 
     # add dask stack to viewer.
-    v = ViewerModel()
+    v = Viewer()
     dask_stack = delayed_dask_stack['stack']
     layer = v.add_image(dask_stack, cache=False)
     # the first and the middle stack will be loaded
@@ -244,7 +244,7 @@ def test_dask_local_unoptimized_slicing(delayed_dask_stack, monkeypatch):
     )
 
     # add dask stack to viewer.
-    v = ViewerModel()
+    v = Viewer()
     dask_stack = delayed_dask_stack['stack']
     v.add_image(dask_stack, cache=False)
     # the first and the middle stack will be loaded
@@ -281,7 +281,7 @@ def test_dask_cache_resizing(delayed_dask_stack):
 
     # add dask stack to the viewer, making sure to pass multiscale and clims
 
-    v = ViewerModel()
+    v = Viewer()
     dask_stack = delayed_dask_stack['stack']
 
     v.add_image(dask_stack)
@@ -317,7 +317,7 @@ def test_prevent_dask_cache(delayed_dask_stack):
     """Test that pre-emptively setting cache to zero keeps it off"""
     resize_dask_cache(0)
 
-    v = ViewerModel()
+    v = Viewer()
     dask_stack = delayed_dask_stack['stack']
     # adding a new stack will not increase the cache size
     v.add_image(dask_stack)

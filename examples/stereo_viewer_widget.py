@@ -29,7 +29,7 @@ from qtpy.QtWidgets import (
 
 import napari
 from napari.components.camera import Camera
-from napari.components.viewer_model import ViewerModel
+from napari.components.viewer import Viewer
 from napari.layers import Layer
 from napari.qt import QtViewer, get_stylesheet
 from napari.settings import get_settings
@@ -54,8 +54,8 @@ class StereoViewerWidget(QWidget):
     def __init__(self, viewer: napari.Viewer) -> None:
         super().__init__()
         self.viewer = viewer
-        self.viewer_left = ViewerModel(title='left eye')
-        self.viewer_right = ViewerModel(title='right eye')
+        self.viewer_left = Viewer(title='left eye')
+        self.viewer_right = Viewer(title='right eye')
         self._block = False
         self._eye_separation = 20.0
         # Reused only to derive view/up directions from Euler angles.
@@ -106,7 +106,7 @@ class StereoViewerWidget(QWidget):
         # Mild perspective helps stereo depth cues.
         self.viewer.scene.camera.perspective = 30
 
-    def _all_models(self) -> tuple[ViewerModel, ViewerModel, ViewerModel]:
+    def _all_models(self) -> tuple[Viewer, Viewer, Viewer]:
         return (self.viewer, self.viewer_left, self.viewer_right)
 
     def _camera_right_vector(
@@ -140,7 +140,7 @@ class StereoViewerWidget(QWidget):
 
     def _base_center_from(
         self,
-        model: ViewerModel,
+        model: Viewer,
         angles: tuple[float, float, float],
         center: tuple[float, float, float] | tuple[float, float],
     ) -> np.ndarray:

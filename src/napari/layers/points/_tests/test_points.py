@@ -2720,13 +2720,13 @@ def test_docstring():
     validate_docstring_parent_class_consistency(Points)
 
 
-def test_points_layer_display_correct_slice_on_scale(viewer_model):
+def test_points_layer_display_correct_slice_on_scale(viewer):
     data = np.zeros((60, 60, 60))
-    viewer_model.add_image(data, scale=[0.29, 0.26, 0.26])
-    pts: Points = viewer_model.add_points(name='test', size=1, ndim=3)
+    viewer.add_image(data, scale=[0.29, 0.26, 0.26])
+    pts: Points = viewer.add_points(name='test', size=1, ndim=3)
     pts.add((8.7, 0, 0))
-    viewer_model.dims.set_point(0, 30 * 0.29)  # middle plane
+    viewer.dims.set_point(0, 30 * 0.29)  # middle plane
 
-    request = pts._slicing_state._make_slice_request(viewer_model.dims)
+    request = pts._slicing_state._make_slice_request(viewer.dims)
     response = request()
     np.testing.assert_equal(response.indices, [0])

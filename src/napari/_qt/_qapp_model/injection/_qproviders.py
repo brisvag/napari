@@ -9,8 +9,8 @@ from typing import TYPE_CHECKING
 
 from napari import components, layers, viewer
 from napari._app_model import get_app_model
+from napari.components.viewer import Viewer
 from napari.utils._proxies import PublicOnlyProxy
-from napari.viewer import ViewerModel
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -28,7 +28,7 @@ def _provide_viewer(public_proxy: bool = True) -> viewer.Viewer | None:
     return None
 
 
-def _provide_viewer_model(public_proxy: bool = True) -> ViewerModel | None:
+def _provide_viewer(public_proxy: bool = True) -> Viewer | None:
     """Provide a Viewer (subclass of ViewerModel) if ViewerModel is needed."""
     return _provide_viewer(public_proxy)
 
@@ -101,7 +101,7 @@ def register_qt_types() -> None:
 # https://github.com/tlambert03/in-n-out/issues/31
 QPROVIDERS: list[tuple[Callable]] = [
     (_provide_viewer,),
-    (_provide_viewer_model,),
+    (_provide_viewer,),
     (_provide_qt_viewer,),
     (_provide_window,),
     (_provide_active_layer,),

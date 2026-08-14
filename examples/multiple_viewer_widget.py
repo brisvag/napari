@@ -28,7 +28,7 @@ from qtpy.QtWidgets import (
 from superqt.utils import qthrottled
 
 import napari
-from napari.components.viewer_model import ViewerModel
+from napari.components.viewer import Viewer
 from napari.layers import Labels, Layer, Vectors
 from napari.qt import QtViewer
 from napari.utils.action_manager import action_manager
@@ -59,23 +59,23 @@ def get_property_names(layer: Layer):
 
 
 def center_cross_on_mouse(
-    viewer_model: napari.components.viewer_model.ViewerModel,
+    viewer: napari.components.viewer.Viewer,
 ):
     """move the cross to the mouse position"""
 
-    if not getattr(viewer_model, 'mouse_over_canvas', True):
+    if not getattr(viewer, 'mouse_over_canvas', True):
         # There is no way for napari 0.4.15 to check if mouse is over sending canvas.
         show_info(
             'Mouse is not over the canvas. You may need to click on the canvas.'
         )
         return
 
-    viewer_model.dims.current_step = tuple(
+    viewer.dims.current_step = tuple(
         np.round(
             [
                 max(min_, min(p, max_)) / step
                 for p, (min_, max_, step) in zip(
-                    viewer_model.cursor.position, viewer_model.dims.range, strict=False
+                    viewer.cursor.position, viewer.dims.range, strict=False
                 )
             ]
         ).astype(int)
@@ -86,7 +86,7 @@ action_manager.register_action(
     name='napari:move_point',
     command=center_cross_on_mouse,
     description='Move dims point to mouse position',
-    keymapprovider=ViewerModel,
+    keymapprovider=Viewer,
 )
 
 action_manager.bind_shortcut('napari:move_point', 'C')
@@ -229,11 +229,11 @@ class MultipleViewerWidget(QSplitter):
     def __init__(self, viewer: napari.Viewer) -> None:
         super().__init__()
         self.viewer = viewer
-        self.viewer_model1 = ViewerModel(title='model1')
-        self.viewer_model2 = ViewerModel(title='model2')
+        self.viewer1 = Viewer(title='model1')
+        self.viewer2 = Viewer(title='model2')
         self._block = False
-        self.qt_viewer1 = QtViewerWrap(viewer, self.viewer_model1)
-        self.qt_viewer2 = QtViewerWrap(viewer, self.viewer_model2)
+        self.qt_viewer1 = QtViewerWrap(viewer, self.viewer1)
+        self.qt_viewer2 = QtViewerWrap(viewer, self.viewer2)
         self.tab_widget = QTabWidget()
         w1 = ExampleWidget()
         w2 = ExampleWidget()
@@ -255,19 +255,19 @@ class MultipleViewerWidget(QSplitter):
             self._layer_selection_changed
         )
         self.viewer.dims.events.current_step.connect(self._point_update)
-        self.viewer_model1.dims.events.current_step.connect(self._point_update)
-        self.viewer_model2.dims.events.current_step.connect(self._point_update)
+        self.viewer1.dims.events.current_step.connect(self._point_update)
+        self.viewer2.dims.events.current_step.connect(self._point_update)
         self.viewer.dims.events.order.connect(self._order_update)
         self.viewer.events.reset_view.connect(self._reset_view)
-        self.viewer_model1.events.status.connect(self._status_update)
-        self.viewer_model2.events.status.connect(self._status_update)
+        self.viewer1.events.status.connect(self._status_update)
+        self.viewer2.events.status.connect(self._status_update)
 
     def _status_update(self, event):
         self.viewer.status = event.value
 
     def _reset_view(self):
-        self.viewer_model1.reset_view()
-        self.viewer_model2.reset_view()
+        self.viewer1.reset_view()
+        self.viewer2.reset_view()
 
     def _layer_selection_changed(self, event):
         """
@@ -277,19 +277,19 @@ class MultipleViewerWidget(QSplitter):
             return
 
         if event.value is None:
-            self.viewer_model1.layers.selection.active = None
-            self.viewer_model2.layers.selection.active = None
+            self.viewer1.layers.selection.active = None
+            self.viewer2.layers.selection.active = None
             return
 
-        self.viewer_model1.layers.selection.active = self.viewer_model1.layers[
+        self.viewer1.layers.selection.active = self.viewer1.layers[
             event.value.name
         ]
-        self.viewer_model2.layers.selection.active = self.viewer_model2.layers[
+        self.viewer2.layers.selection.active = self.viewer2.layers[
             event.value.name
         ]
 
     def _point_update(self, event):
-        for model in [self.viewer, self.viewer_model1, self.viewer_model2]:
+        for model in [self.viewer, self.viewer1, self.viewer2]:
             if model.dims is event.source:
                 continue
             if len(self.viewer.layers) != len(model.layers):
@@ -299,22 +299,22 @@ class MultipleViewerWidget(QSplitter):
     def _order_update(self):
         order = list(self.viewer.dims.order)
         if len(order) <= 2:
-            self.viewer_model1.dims.order = order
-            self.viewer_model2.dims.order = order
+            self.viewer1.dims.order = order
+            self.viewer2.dims.order = order
             return
 
         order[-3:] = order[-2], order[-3], order[-1]
-        self.viewer_model1.dims.order = tuple(order)
+        self.viewer1.dims.order = tuple(order)
         order = list(self.viewer.dims.order)
         order[-3:] = order[-1], order[-2], order[-3]
-        self.viewer_model2.dims.order = tuple(order)
+        self.viewer2.dims.order = tuple(order)
 
     def _layer_added(self, event):
         """add layer to additional viewers and connect all required events"""
-        self.viewer_model1.layers.insert(
+        self.viewer1.layers.insert(
             event.index, copy_layer(event.value, 'model1')
         )
-        self.viewer_model2.layers.insert(
+        self.viewer2.layers.insert(
             event.index, copy_layer(event.value, 'model2')
         )
         for name in get_property_names(event.value):
@@ -325,24 +325,24 @@ class MultipleViewerWidget(QSplitter):
         if isinstance(event.value, Labels):
             event.value.events.set_data.connect(self._set_data_refresh)
             event.value.events.labels_update.connect(self._set_data_refresh)
-            self.viewer_model1.layers[
+            self.viewer1.layers[
                 event.value.name
             ].events.set_data.connect(self._set_data_refresh)
-            self.viewer_model2.layers[
+            self.viewer2.layers[
                 event.value.name
             ].events.set_data.connect(self._set_data_refresh)
             event.value.events.labels_update.connect(self._set_data_refresh)
-            self.viewer_model1.layers[
+            self.viewer1.layers[
                 event.value.name
             ].events.labels_update.connect(self._set_data_refresh)
-            self.viewer_model2.layers[
+            self.viewer2.layers[
                 event.value.name
             ].events.labels_update.connect(self._set_data_refresh)
         if event.value.name != '.cross':
-            self.viewer_model1.layers[event.value.name].events.data.connect(
+            self.viewer1.layers[event.value.name].events.data.connect(
                 self._sync_data
             )
-            self.viewer_model2.layers[event.value.name].events.data.connect(
+            self.viewer2.layers[event.value.name].events.data.connect(
                 self._sync_data
             )
 
@@ -353,14 +353,14 @@ class MultipleViewerWidget(QSplitter):
     def _sync_name(self, event):
         """sync name of layers"""
         index = self.viewer.layers.index(event.source)
-        self.viewer_model1.layers[index].name = event.source.name
-        self.viewer_model2.layers[index].name = event.source.name
+        self.viewer1.layers[index].name = event.source.name
+        self.viewer2.layers[index].name = event.source.name
 
     def _sync_data(self, event):
         """sync data modification from additional viewers"""
         if self._block:
             return
-        for model in [self.viewer, self.viewer_model1, self.viewer_model2]:
+        for model in [self.viewer, self.viewer1, self.viewer2]:
             layer = model.layers[event.source.name]
             if layer is event.source:
                 continue
@@ -376,7 +376,7 @@ class MultipleViewerWidget(QSplitter):
         """
         if self._block:
             return
-        for model in [self.viewer, self.viewer_model1, self.viewer_model2]:
+        for model in [self.viewer, self.viewer1, self.viewer2]:
             layer = model.layers[event.source.name]
             if layer is event.source:
                 continue
@@ -388,8 +388,8 @@ class MultipleViewerWidget(QSplitter):
 
     def _layer_removed(self, event):
         """remove layer in all viewers"""
-        self.viewer_model1.layers.pop(event.index)
-        self.viewer_model2.layers.pop(event.index)
+        self.viewer1.layers.pop(event.index)
+        self.viewer2.layers.pop(event.index)
 
     def _layer_moved(self, event):
         """update order of layers"""
@@ -398,8 +398,8 @@ class MultipleViewerWidget(QSplitter):
             if event.new_index < event.index
             else event.new_index + 1
         )
-        self.viewer_model1.layers.move(event.index, dest_index)
-        self.viewer_model2.layers.move(event.index, dest_index)
+        self.viewer1.layers.move(event.index, dest_index)
+        self.viewer2.layers.move(event.index, dest_index)
 
     def _property_sync(self, name, event):
         """Sync layers properties (except the name)"""
@@ -408,12 +408,12 @@ class MultipleViewerWidget(QSplitter):
         try:
             self._block = True
             setattr(
-                self.viewer_model1.layers[event.source.name],
+                self.viewer1.layers[event.source.name],
                 name,
                 getattr(event.source, name),
             )
             setattr(
-                self.viewer_model2.layers[event.source.name],
+                self.viewer2.layers[event.source.name],
                 name,
                 getattr(event.source, name),
             )

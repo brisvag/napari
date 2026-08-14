@@ -249,7 +249,7 @@ def test_multiscale_flipped_axes(make_napari_viewer):
 
 @skip_on_win_ci
 @skip_local_popups
-def test_multiscale_rotated_image(qt_viewer, viewer_model):
+def test_multiscale_rotated_image(qt_viewer, viewer):
     qt_viewer.show()
     sizes = [4000 // i for i in range(1, 5)]
     arrays = [np.zeros((size, size), dtype=np.uint8) for size in sizes]
@@ -257,7 +257,7 @@ def test_multiscale_rotated_image(qt_viewer, viewer_model):
         arr[:10, :10] = 255
         arr[-10:, -10:] = 255
 
-    viewer_model.add_image(arrays, multiscale=True, rotate=44)
+    viewer.add_image(arrays, multiscale=True, rotate=44)
     screenshot_rgba = qt_viewer.screenshot(flash=False)
     screenshot_rgb = screenshot_rgba[..., :3]
     assert np.any(

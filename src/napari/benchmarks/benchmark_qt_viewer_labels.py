@@ -14,7 +14,7 @@ from vispy.app import MouseEvent
 
 import napari
 import napari.layers
-from napari.components.viewer_model import ViewerModel
+from napari.components.viewer import Viewer
 from napari.qt import QtViewer
 from napari.utils.colormaps import DirectLabelColormap
 
@@ -142,7 +142,7 @@ class LabelRendering:
         self.app = QApplication.instance() or QApplication([])
         self.data = setup_rendering_data(radius, dtype)
         scale = self.data.shape[-1] / np.array(self.data.shape)
-        self.viewer = ViewerModel()
+        self.viewer = Viewer()
         self.qt_viewr = QtViewer(self.viewer)
         self.layer = self.viewer.add_labels(self.data, scale=scale)
         if label_mode == 'direct':

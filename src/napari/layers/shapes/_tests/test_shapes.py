@@ -11,7 +11,7 @@ from napari._tests.utils import (
     assert_colors_equal,
     check_layer_world_data_extent,
 )
-from napari.components import ViewerModel
+from napari.components import Viewer
 from napari.components.dims import Dims
 from napari.layers import Shapes
 from napari.layers.base._base_constants import ActionType
@@ -2601,7 +2601,7 @@ def test_set_data_3d():
 
 
 def test_editing_4d():
-    viewer = ViewerModel()
+    viewer = Viewer()
     viewer.add_shapes(
         ndim=4,
         name='rois',

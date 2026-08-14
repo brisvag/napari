@@ -201,7 +201,7 @@ def generate_module_stub(module: str | ModuleType, save=True) -> str:
 if __name__ == '__main__':
     import sys
 
-    default_modules = ['napari.view_layers', 'napari.components.viewer_model']
+    default_modules = ['napari.view_layers', 'napari.components.viewer']
 
     for mod in sys.argv[1:] or default_modules:
         generate_module_stub(mod)

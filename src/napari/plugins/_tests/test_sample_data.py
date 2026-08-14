@@ -4,8 +4,8 @@ import pytest
 from npe2 import DynamicPlugin
 from npe2.manifest.contributions import SampleDataURI
 
+from napari.components.viewer import Viewer
 from napari.layers._source import Source
-from napari.viewer import ViewerModel
 
 
 @pytest.fixture(scope='session')
@@ -18,7 +18,7 @@ def sample_points(tmp_path_factory):
 
 
 def test_sample_hook(builtins, tmp_plugin: DynamicPlugin, sample_points):
-    viewer = ViewerModel()
+    viewer = Viewer()
     NAME = tmp_plugin.name
     KEY = 'random data'
     with pytest.raises(KeyError, match=f'Plugin {NAME!r} does not provide'):
@@ -59,7 +59,7 @@ def test_sample_hook(builtins, tmp_plugin: DynamicPlugin, sample_points):
 def test_sample_uses_reader_plugin(
     builtins, tmp_plugin, tmp_path, sample_points
 ):
-    viewer = ViewerModel()
+    viewer = Viewer()
     NAME = tmp_plugin.name
     tmp_plugin.manifest.contributions.sample_data = [
         SampleDataURI(

@@ -456,7 +456,7 @@ def test_env_settings_restore(monkeypatch):
 
 
 NO_IMPORT_SCRIPT = """
-from napari.viewer import Viewer
+from napari.components.viewer import Viewer
 from napari import settings
 {additional_imports}
 

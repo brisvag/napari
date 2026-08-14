@@ -27,7 +27,7 @@ from napari._tests.utils import (
     skip_on_win_ci,
 )
 from napari._vispy._tests.utils import vispy_image_scene_size
-from napari.components.viewer_model import ViewerModel
+from napari.components.viewer import Viewer
 from napari.layers import Labels, Layer, Points
 from napari.settings import get_settings
 from napari.utils.colormaps import DirectLabelColormap, label_colormap
@@ -68,164 +68,146 @@ def qt_viewer(
 @pytest.mark.parametrize(('layer_class', 'data', 'ndim'), layer_test_data)
 def test_add_layer(
     qt_viewer: QtViewer,
-    viewer_model: ViewerModel,
+    viewer: Viewer,
     layer_class: type[Layer],
     data: ArrayLike,
     ndim: int,
 ) -> None:
-    viewer_model.dims.ndisplay = max(min(3, ndim), 2)
+    viewer.dims.ndisplay = max(min(3, ndim), 2)
 
-    add_layer_by_type(viewer_model, layer_class, data)
-    check_viewer_functioning(viewer_model, qt_viewer, data, ndim)
+    add_layer_by_type(viewer, layer_class, data)
+    check_viewer_functioning(viewer, qt_viewer, data, ndim)
 
 
-def test_new_labels(qt_viewer: QtViewer, viewer_model: ViewerModel) -> None:
+def test_new_labels(qt_viewer: QtViewer, viewer: Viewer) -> None:
     """Test adding new labels layer to empty viewer."""
-    viewer_model._new_labels()
-    assert np.max(viewer_model.layers[0].data) == 0
-    assert len(viewer_model.layers) == 1
-    assert qt_viewer.layers.model().rowCount() == len(viewer_model.layers)
+    viewer._new_labels()
+    assert np.max(viewer.layers[0].data) == 0
+    assert len(viewer.layers) == 1
+    assert qt_viewer.layers.model().rowCount() == len(viewer.layers)
 
-    assert viewer_model.dims.ndim == 2
-    assert qt_viewer.dims.nsliders == viewer_model.dims.ndim
+    assert viewer.dims.ndim == 2
+    assert qt_viewer.dims.nsliders == viewer.dims.ndim
     npt.assert_array_equal(qt_viewer.dims._displayed_sliders, False)
 
 
-def test_new_labels_to_image(
-    qt_viewer: QtViewer, viewer_model: ViewerModel
-) -> None:
+def test_new_labels_to_image(qt_viewer: QtViewer, viewer: Viewer) -> None:
     """Test adding new labels layer to viewer with image."""
     data = np.random.default_rng(0).random((10, 15))
-    viewer_model.add_image(data)
-    viewer_model._new_labels()
-    assert np.max(viewer_model.layers[1].data) == 0
-    assert len(viewer_model.layers) == 2
-    assert qt_viewer.layers.model().rowCount() == len(viewer_model.layers)
+    viewer.add_image(data)
+    viewer._new_labels()
+    assert np.max(viewer.layers[1].data) == 0
+    assert len(viewer.layers) == 2
+    assert qt_viewer.layers.model().rowCount() == len(viewer.layers)
 
-    assert viewer_model.dims.ndim == 2
-    assert qt_viewer.dims.nsliders == viewer_model.dims.ndim
+    assert viewer.dims.ndim == 2
+    assert qt_viewer.dims.nsliders == viewer.dims.ndim
     npt.assert_array_equal(qt_viewer.dims._displayed_sliders, False)
 
 
-def test_new_points(qt_viewer: QtViewer, viewer_model: ViewerModel) -> None:
+def test_new_points(qt_viewer: QtViewer, viewer: Viewer) -> None:
     """Test adding a new points layer to empty viewer."""
-    viewer_model.add_points()
-    assert len(viewer_model.layers[0].data) == 0
-    assert len(viewer_model.layers) == 1
-    assert qt_viewer.layers.model().rowCount() == len(viewer_model.layers)
+    viewer.add_points()
+    assert len(viewer.layers[0].data) == 0
+    assert len(viewer.layers) == 1
+    assert qt_viewer.layers.model().rowCount() == len(viewer.layers)
 
-    assert viewer_model.dims.ndim == 2
-    assert qt_viewer.dims.nsliders == viewer_model.dims.ndim
+    assert viewer.dims.ndim == 2
+    assert qt_viewer.dims.nsliders == viewer.dims.ndim
     npt.assert_array_equal(qt_viewer.dims._displayed_sliders, False)
 
 
-def test_new_points_to_image(
-    qt_viewer: QtViewer, viewer_model: ViewerModel
-) -> None:
+def test_new_points_to_image(qt_viewer: QtViewer, viewer: Viewer) -> None:
     """Test adding new points layer to viewer with image."""
     data = np.random.default_rng(0).random((10, 15))
-    viewer_model.add_image(data)
-    viewer_model.add_points()
-    assert len(viewer_model.layers[1].data) == 0
-    assert len(viewer_model.layers) == 2
-    assert qt_viewer.layers.model().rowCount() == len(viewer_model.layers)
+    viewer.add_image(data)
+    viewer.add_points()
+    assert len(viewer.layers[1].data) == 0
+    assert len(viewer.layers) == 2
+    assert qt_viewer.layers.model().rowCount() == len(viewer.layers)
 
-    assert viewer_model.dims.ndim == 2
-    assert qt_viewer.dims.nsliders == viewer_model.dims.ndim
+    assert viewer.dims.ndim == 2
+    assert qt_viewer.dims.nsliders == viewer.dims.ndim
     npt.assert_array_equal(qt_viewer.dims._displayed_sliders, False)
 
 
-def test_new_shapes_empty_viewer(
-    qt_viewer: QtViewer, viewer_model: ViewerModel
-) -> None:
+def test_new_shapes_empty_viewer(qt_viewer: QtViewer, viewer: Viewer) -> None:
     """Test adding new shapes layer to empty viewer."""
-    viewer_model.add_shapes()
-    assert len(viewer_model.layers[0].data) == 0
-    assert len(viewer_model.layers) == 1
-    assert qt_viewer.layers.model().rowCount() == len(viewer_model.layers)
+    viewer.add_shapes()
+    assert len(viewer.layers[0].data) == 0
+    assert len(viewer.layers) == 1
+    assert qt_viewer.layers.model().rowCount() == len(viewer.layers)
 
-    assert viewer_model.dims.ndim == 2
-    assert qt_viewer.dims.nsliders == viewer_model.dims.ndim
+    assert viewer.dims.ndim == 2
+    assert qt_viewer.dims.nsliders == viewer.dims.ndim
     npt.assert_array_equal(qt_viewer.dims._displayed_sliders, False)
 
 
-def test_new_shapes_to_image(
-    qt_viewer: QtViewer, viewer_model: ViewerModel
-) -> None:
+def test_new_shapes_to_image(qt_viewer: QtViewer, viewer: Viewer) -> None:
     """Test adding new shapes layer to viewer with image."""
     data = np.random.default_rng(0).random((10, 15))
-    viewer_model.add_image(data)
-    viewer_model.add_shapes()
-    assert len(viewer_model.layers[1].data) == 0
-    assert len(viewer_model.layers) == 2
-    assert qt_viewer.layers.model().rowCount() == len(viewer_model.layers)
+    viewer.add_image(data)
+    viewer.add_shapes()
+    assert len(viewer.layers[1].data) == 0
+    assert len(viewer.layers) == 2
+    assert qt_viewer.layers.model().rowCount() == len(viewer.layers)
 
-    assert viewer_model.dims.ndim == 2
-    assert qt_viewer.dims.nsliders == viewer_model.dims.ndim
+    assert viewer.dims.ndim == 2
+    assert qt_viewer.dims.nsliders == viewer.dims.ndim
     npt.assert_array_equal(qt_viewer.dims._displayed_sliders, False)
 
 
 def test_z_order_adding_removing_images(
-    viewer_model: ViewerModel, qt_viewer: QtViewer
+    viewer: Viewer, qt_viewer: QtViewer
 ) -> None:
     """Test z order is correct after adding/ removing images."""
     data = np.ones((10, 10))
 
     vis = qt_viewer.canvas.layer_to_visual
-    viewer_model.add_image(data, colormap='red', name='red')
-    viewer_model.add_image(data, colormap='green', name='green')
-    viewer_model.add_image(data, colormap='blue', name='blue')
-    order = [vis[x].order for x in viewer_model.layers]
-    np.testing.assert_almost_equal(
-        order, list(range(len(viewer_model.layers)))
-    )
+    viewer.add_image(data, colormap='red', name='red')
+    viewer.add_image(data, colormap='green', name='green')
+    viewer.add_image(data, colormap='blue', name='blue')
+    order = [vis[x].order for x in viewer.layers]
+    np.testing.assert_almost_equal(order, list(range(len(viewer.layers))))
 
     # Remove and re-add image
-    viewer_model.layers.remove('red')
-    order = [vis[x].order for x in viewer_model.layers]
-    np.testing.assert_almost_equal(
-        order, list(range(len(viewer_model.layers)))
-    )
-    viewer_model.add_image(data, colormap='red', name='red')
-    order = [vis[x].order for x in viewer_model.layers]
-    np.testing.assert_almost_equal(
-        order, list(range(len(viewer_model.layers)))
-    )
+    viewer.layers.remove('red')
+    order = [vis[x].order for x in viewer.layers]
+    np.testing.assert_almost_equal(order, list(range(len(viewer.layers))))
+    viewer.add_image(data, colormap='red', name='red')
+    order = [vis[x].order for x in viewer.layers]
+    np.testing.assert_almost_equal(order, list(range(len(viewer.layers))))
 
     # Remove two other images
-    viewer_model.layers.remove('green')
-    viewer_model.layers.remove('blue')
-    order = [vis[x].order for x in viewer_model.layers]
-    np.testing.assert_almost_equal(
-        order, list(range(len(viewer_model.layers)))
-    )
+    viewer.layers.remove('green')
+    viewer.layers.remove('blue')
+    order = [vis[x].order for x in viewer.layers]
+    np.testing.assert_almost_equal(order, list(range(len(viewer.layers))))
 
     # Add two other layers back
-    viewer_model.add_image(data, colormap='green', name='green')
-    viewer_model.add_image(data, colormap='blue', name='blue')
-    order = [vis[x].order for x in viewer_model.layers]
-    np.testing.assert_almost_equal(
-        order, list(range(len(viewer_model.layers)))
-    )
+    viewer.add_image(data, colormap='green', name='green')
+    viewer.add_image(data, colormap='blue', name='blue')
+    order = [vis[x].order for x in viewer.layers]
+    np.testing.assert_almost_equal(order, list(range(len(viewer.layers))))
 
 
 @pytest.mark.show_qt_viewer
 def test_export_figure(
     qt_viewer: QtViewer,
-    viewer_model: ViewerModel,
+    viewer: Viewer,
     tmp_path: Path,
     qtbot: QtBot,
 ) -> None:
     # Add image
     data = np.ones((250, 250))
-    layer = viewer_model.add_image(data)
+    layer = viewer.add_image(data)
 
-    camera_center = viewer_model.camera.center
-    camera_zoom = viewer_model.camera.zoom
+    camera_center = viewer.camera.center
+    camera_zoom = viewer.camera.zoom
     img = qt_viewer.export_figure(flash=False, path=str(tmp_path / 'img.png'))
 
-    assert viewer_model.camera.center == camera_center
-    assert isclose(viewer_model.camera.zoom, camera_zoom)
+    assert viewer.camera.center == camera_center
+    assert isclose(viewer.camera.zoom, camera_zoom)
     np.testing.assert_allclose(img.shape, (250, 250, 4), atol=1)
 
     assert (img.reshape(-1, 4) == [255, 255, 255, 255]).all(axis=1).all()
@@ -246,17 +228,17 @@ def test_export_figure(
 @pytest.mark.show_qt_viewer
 def test_export_figure_3d(
     qt_viewer: QtViewer,
-    viewer_model: ViewerModel,
+    viewer: Viewer,
     tmp_path: Path,
     qtbot: QtBot,
 ) -> None:
     rng = np.random.default_rng(0)
     # Add image, keep values low to contrast with white background
-    viewer_model.dims.ndisplay = 3
-    viewer_model.theme = 'light'
+    viewer.dims.ndisplay = 3
+    viewer.theme = 'light'
 
     data = rng.integers(50, 100, size=(10, 250, 250), dtype=np.uint8)
-    layer = viewer_model.add_image(data)
+    layer = viewer.add_image(data)
 
     # check the non-rotated data (angles = 0,0,90) are exported without any
     # visible background, since the margins should be 0
@@ -271,7 +253,7 @@ def test_export_figure_3d(
 
     # rotate the data, export the figure, and check that the rotated figure
     # shape is greater than the original data shape
-    viewer_model.camera.angles = (45, 45, 45)
+    viewer.camera.angles = (45, 45, 45)
     img = qt_viewer.export_figure(flash=False)
     np.testing.assert_allclose(img.shape, (255, 258, 4), atol=1)
 
@@ -285,7 +267,7 @@ def test_export_figure_3d(
 @pytest.mark.show_qt_viewer
 def test_export_rois(
     qt_viewer: QtViewer,
-    viewer_model: ViewerModel,
+    viewer: Viewer,
     tmp_path: Path,
     qtbot: QtBot,
 ) -> None:
@@ -295,7 +277,7 @@ def test_export_rois(
     img[25:75, 25:75] = 255
 
     # Add viewer
-    viewer_model.add_image(img, colormap='gray')
+    viewer.add_image(img, colormap='gray')
 
     # Create a couple of clearly defined rectangular polygons for validation
     roi_shapes_data = [
@@ -311,8 +293,8 @@ def test_export_rois(
     ]
 
     # Save original camera state for comparison later
-    camera_center = viewer_model.camera.center
-    camera_zoom = viewer_model.camera.zoom
+    camera_center = viewer.camera.center
+    camera_zoom = viewer.camera.zoom
 
     with pytest.raises(ValueError, match='The number of file'):
         qt_viewer.export_rois(roi_shapes_data, paths=paths + ['fake'])
@@ -333,8 +315,8 @@ def test_export_rois(
     assert all(
         roi.shape == (20 * scaling, 20 * scaling, 4) for roi in test_roi
     )
-    assert viewer_model.camera.center == camera_center
-    assert viewer_model.camera.zoom == camera_zoom
+    assert viewer.camera.center == camera_center
+    assert viewer.camera.zoom == camera_zoom
 
     test_dir = tmp_path / 'test_dir'
     refs = []
@@ -364,9 +346,7 @@ def test_export_rois(
 
 
 @pytest.mark.show_qt_viewer
-def test_export_rois_3d_fail(
-    qt_viewer: QtViewer, viewer_model: ViewerModel
-) -> None:
+def test_export_rois_3d_fail(qt_viewer: QtViewer, viewer: Viewer) -> None:
     # create 3d ROI for testing
     roi_3d = [
         np.array([[0, 0, 0], [0, 20, 0], [0, 20, 20], [0, 0, 20]]),
@@ -378,8 +358,8 @@ def test_export_rois_3d_fail(
         qt_viewer.export_rois(roi_3d)
 
     test_data = np.zeros((4, 50, 50))
-    viewer_model.add_image(test_data)
-    viewer_model.dims.ndisplay = 3
+    viewer.add_image(test_data)
+    viewer.dims.ndisplay = 3
 
     # 3D view should fail
     roi_data = [
@@ -395,29 +375,29 @@ def test_export_rois_3d_fail(
 @pytest.mark.skip('new approach')
 @pytest.mark.show_qt_viewer
 def test_screenshot_dialog(
-    viewer_model: ViewerModel, qt_viewer: QtViewer, tmp_path: Path
+    viewer: Viewer, qt_viewer: QtViewer, tmp_path: Path
 ) -> None:
     """Test save screenshot functionality."""
     rng = np.random.default_rng(0)
     # Add image
     data = rng.random((10, 15))
-    viewer_model.add_image(data)
+    viewer.add_image(data)
 
     # Add labels
     data = rng.integers(20, size=(10, 15))
-    viewer_model.add_labels(data)
+    viewer.add_labels(data)
 
     # Add points
     data = 20 * rng.random((10, 2))
-    viewer_model.add_points(data)
+    viewer.add_points(data)
 
     # Add vectors
     data = 20 * rng.random((10, 2, 2))
-    viewer_model.add_vectors(data)
+    viewer.add_vectors(data)
 
     # Add shapes
     data = 20 * rng.random((10, 4, 2))
-    viewer_model.add_shapes(data)
+    viewer.add_shapes(data)
 
     # Save screenshot
     input_filepath = os.path.join(tmp_path, 'test-save-screenshot')
@@ -439,37 +419,33 @@ def test_screenshot_dialog(
 
 
 @pytest.mark.key_bindings
-def test_active_keybindings(
-    qt_viewer: QtViewer, viewer_model: ViewerModel
-) -> None:
+def test_active_keybindings(qt_viewer: QtViewer, viewer: Viewer) -> None:
     """Test instantiating viewer."""
     # Check only keybinding is Viewer
     assert len(qt_viewer._key_map_handler.keymap_providers) == 1
-    assert qt_viewer._key_map_handler.keymap_providers[0] == viewer_model
+    assert qt_viewer._key_map_handler.keymap_providers[0] == viewer
 
     # Add a layer and check it is keybindings are active
     data = np.random.default_rng(0).random((10, 15))
-    layer_image = viewer_model.add_image(data)
-    assert viewer_model.layers.selection.active == layer_image
+    layer_image = viewer.add_image(data)
+    assert viewer.layers.selection.active == layer_image
     assert len(qt_viewer._key_map_handler.keymap_providers) == 2
     assert qt_viewer._key_map_handler.keymap_providers[0] == layer_image
 
     # Add a layer and check it is keybindings become active
-    layer_image_2 = viewer_model.add_image(data)
-    assert viewer_model.layers.selection.active == layer_image_2
+    layer_image_2 = viewer.add_image(data)
+    assert viewer.layers.selection.active == layer_image_2
     assert len(qt_viewer._key_map_handler.keymap_providers) == 2
     assert qt_viewer._key_map_handler.keymap_providers[0] == layer_image_2
 
     # Change active layer and check it is keybindings become active
-    viewer_model.layers.selection.active = layer_image
-    assert viewer_model.layers.selection.active == layer_image
+    viewer.layers.selection.active = layer_image
+    assert viewer.layers.selection.active == layer_image
     assert len(qt_viewer._key_map_handler.keymap_providers) == 2
     assert qt_viewer._key_map_handler.keymap_providers[0] == layer_image
 
 
-def test_process_mouse_event(
-    qt_viewer: QtViewer, viewer_model: ViewerModel
-) -> None:
+def test_process_mouse_event(qt_viewer: QtViewer, viewer: Viewer) -> None:
     """Test that the correct properties are added to the
     MouseEvent by _process_mouse_events.
     """
@@ -482,9 +458,7 @@ def test_process_mouse_event(
     data = np.zeros((5, 20, 20, 20), dtype=int)
     data[1, 0:10, 0:10, 0:10] = 1
 
-    labels = viewer_model.add_labels(
-        data, scale=(1, 2, 1, 1), translate=(5, 5, 5)
-    )
+    labels = viewer.add_labels(data, scale=(1, 2, 1, 1), translate=(5, 5, 5))
 
     @labels.mouse_drag_callbacks.append
     def on_click(layer, event):
@@ -497,12 +471,12 @@ def test_process_mouse_event(
         )
         np.testing.assert_almost_equal(expected_position, list(event.position))
 
-    viewer_model.dims.ndisplay = 3
+    viewer.dims.ndisplay = 3
     qt_viewer.canvas._process_mouse_event(mouse_press_callbacks, mouse_event)
 
 
 def test_process_mouse_event_2d_layer_3d_viewer(
-    qt_viewer: QtViewer, viewer_model: ViewerModel
+    qt_viewer: QtViewer, viewer: Viewer
 ) -> None:
     """Test that _process_mouse_events can handle 2d layers in 3D.
 
@@ -517,7 +491,7 @@ def test_process_mouse_event_2d_layer_3d_viewer(
     )
     data = np.zeros((20, 20))
 
-    image = viewer_model.add_image(data)
+    image = viewer.add_image(data)
 
     @image.mouse_drag_callbacks.append
     def on_click(layer, event):
@@ -526,40 +500,40 @@ def test_process_mouse_event_2d_layer_3d_viewer(
         )
         np.testing.assert_almost_equal(expected_position, list(event.position))
 
-    assert viewer_model.dims.ndisplay == 2
+    assert viewer.dims.ndisplay == 2
     qt_viewer.canvas._process_mouse_event(mouse_press_callbacks, mouse_event)
 
-    viewer_model.dims.ndisplay = 3
+    viewer.dims.ndisplay = 3
     qt_viewer.canvas._process_mouse_event(mouse_press_callbacks, mouse_event)
 
 
 @pytest.mark.usefixtures(
     'qt_viewer'
 )  # need qt_viewer to trigger the vispy code
-def test_remove_points(viewer_model: ViewerModel) -> None:
-    viewer_model.add_points([(1, 2), (2, 3)])
-    del viewer_model.layers[0]
-    viewer_model.add_points([(1, 2), (2, 3)])
+def test_remove_points(viewer: Viewer) -> None:
+    viewer.add_points([(1, 2), (2, 3)])
+    del viewer.layers[0]
+    viewer.add_points([(1, 2), (2, 3)])
 
 
 @pytest.mark.usefixtures(
     'qt_viewer'
 )  # need qt_viewer to trigger the vispy code
-def test_remove_image(viewer_model: ViewerModel) -> None:
+def test_remove_image(viewer: Viewer) -> None:
     rng = np.random.default_rng(0)
-    viewer_model.add_image(rng.random((10, 10)))
-    del viewer_model.layers[0]
-    viewer_model.add_image(rng.random((10, 10)))
+    viewer.add_image(rng.random((10, 10)))
+    del viewer.layers[0]
+    viewer.add_image(rng.random((10, 10)))
 
 
 @pytest.mark.usefixtures(
     'qt_viewer'
 )  # need qt_viewer to trigger the vispy code
-def test_remove_labels(viewer_model: ViewerModel) -> None:
+def test_remove_labels(viewer: Viewer) -> None:
     rng = np.random.default_rng(0)
-    viewer_model.add_labels(rng.integers(0, 10, size=(10, 10), dtype=np.int8))
-    del viewer_model.layers[0]
-    viewer_model.add_labels(rng.integers(0, 10, size=(10, 10), dtype=np.int8))
+    viewer.add_labels(rng.integers(0, 10, size=(10, 10), dtype=np.int8))
+    del viewer.layers[0]
+    viewer.add_labels(rng.integers(0, 10, size=(10, 10), dtype=np.int8))
 
 
 @pytest.mark.skip(
@@ -567,7 +541,7 @@ def test_remove_labels(viewer_model: ViewerModel) -> None:
 )
 @pytest.mark.parametrize('multiscale', [False, True])
 def test_mixed_2d_and_3d_layers(
-    viewer_model: ViewerModel, qt_viewer: QtViewer, multiscale: bool
+    viewer: Viewer, qt_viewer: QtViewer, multiscale: bool
 ) -> None:
     """Test bug in setting corner_pixels from qt_viewer.on_draw"""
     img = np.ones((512, 256))
@@ -578,24 +552,24 @@ def test_mixed_2d_and_3d_layers(
     vol = np.stack([img] * 8, axis=0)
     if multiscale:
         img = [img[::s, ::s] for s in (1, 2, 4)]
-    viewer_model.add_image(img)
-    img_multi_layer = viewer_model.layers[0]
-    viewer_model.add_image(vol)
+    viewer.add_image(img)
+    img_multi_layer = viewer.layers[0]
+    viewer.add_image(vol)
 
-    viewer_model.dims.order = (0, 1, 2)
+    viewer.dims.order = (0, 1, 2)
     qt_viewer.canvas.size = canvas_size
     qt_viewer.canvas.on_draw(None)
     np.testing.assert_array_equal(
         img_multi_layer.corner_pixels, expected_corner_pixels
     )
 
-    viewer_model.dims.order = (2, 0, 1)
+    viewer.dims.order = (2, 0, 1)
     qt_viewer.canvas.on_draw(None)
     np.testing.assert_array_equal(
         img_multi_layer.corner_pixels, expected_corner_pixels
     )
 
-    viewer_model.dims.order = (1, 2, 0)
+    viewer.dims.order = (1, 2, 0)
     qt_viewer.canvas.on_draw(None)
     np.testing.assert_array_equal(
         img_multi_layer.corner_pixels, expected_corner_pixels
@@ -605,23 +579,23 @@ def test_mixed_2d_and_3d_layers(
 @pytest.mark.usefixtures(
     'qt_viewer'
 )  # need qt_viewer to trigger the vispy code
-def test_remove_add_image_3D(viewer_model: ViewerModel) -> None:
+def test_remove_add_image_3D(viewer: Viewer) -> None:
     """
     Test that adding, removing and readding an image layer in 3D does not cause issues
     due to the vispy node change. See https://github.com/napari/napari/pull/3670
     """
-    viewer_model.dims.ndisplay = 3
+    viewer.dims.ndisplay = 3
     img = np.ones((10, 10, 10))
 
-    layer = viewer_model.add_image(img)
-    viewer_model.layers.remove(layer)
-    viewer_model.layers.append(layer)
+    layer = viewer.add_image(img)
+    viewer.layers.remove(layer)
+    viewer.layers.append(layer)
 
 
 @skip_on_win_ci
 @skip_local_popups
 @pytest.mark.show_qt_viewer
-def test_qt_viewer_multscale_image_out_of_view(viewer_model):
+def test_qt_viewer_multscale_image_out_of_view(viewer):
     """Test out-of-view multiscale image viewing fix.
 
     Just verifies that no RuntimeError is raised in this scenario.
@@ -629,8 +603,8 @@ def test_qt_viewer_multscale_image_out_of_view(viewer_model):
     see: https://github.com/napari/napari/issues/3863.
     """
     # show=True required to test fix for OpenGL error
-    viewer_model.dims.ndisplay = 2
-    viewer_model.add_shapes(
+    viewer.dims.ndisplay = 2
+    viewer.add_shapes(
         data=[
             np.array(
                 [[1500, 4500], [4500, 4500], [4500, 1500], [1500, 1500]],
@@ -639,18 +613,16 @@ def test_qt_viewer_multscale_image_out_of_view(viewer_model):
         ],
         shape_type=['polygon'],
     )
-    viewer_model.add_image([np.eye(1024), np.eye(512), np.eye(256)])
+    viewer.add_image([np.eye(1024), np.eye(512), np.eye(256)])
 
 
-def test_insert_layer_ordering(
-    viewer_model: ViewerModel, qt_viewer: QtViewer
-) -> None:
+def test_insert_layer_ordering(viewer: Viewer, qt_viewer: QtViewer) -> None:
     """make sure layer ordering is correct in vispy when inserting layers"""
     pl1 = Points()
     pl2 = Points()
 
-    viewer_model.layers.append(pl1)
-    viewer_model.layers.insert(0, pl2)
+    viewer.layers.append(pl1)
+    viewer.layers.insert(0, pl2)
 
     pl1_vispy = qt_viewer.canvas.layer_to_visual[pl1].node
     pl2_vispy = qt_viewer.canvas.layer_to_visual[pl2].node
@@ -658,16 +630,16 @@ def test_insert_layer_ordering(
     assert pl2_vispy.order == 0
 
 
-def test_create_non_empty_viewer_model(qtbot: QtBot) -> None:
-    viewer_model = ViewerModel()
-    viewer_model.add_points([(1, 2), (2, 3)])
+def test_create_non_empty_viewer(qtbot: QtBot) -> None:
+    viewer = Viewer()
+    viewer.add_points([(1, 2), (2, 3)])
 
-    viewer = QtViewer(viewer=viewer_model)
+    viewer = QtViewer(viewer=viewer)
 
     viewer.close()
     viewer.deleteLater()
     # try to del local reference for gc.
-    del viewer_model
+    del viewer
     del viewer
     qtbot.wait(50)
     gc.collect()
@@ -685,10 +657,10 @@ def test_qt_viewer_canvas_is_nested_in_main_widget(
 
 
 def test_qt_viewer_canvas_hover_state_comes_from_canvas(
-    qt_viewer: QtViewer, viewer_model: ViewerModel
+    qt_viewer: QtViewer, viewer: Viewer
 ) -> None:
-    viewer_model.mouse_over_canvas = False
-    viewer_model.status = ''
+    viewer.mouse_over_canvas = False
+    viewer.status = ''
 
     canvas = qt_viewer.canvas.native
     canvas.enterEvent(
@@ -698,18 +670,18 @@ def test_qt_viewer_canvas_hover_state_comes_from_canvas(
             QPointF(10, 10),
         )
     )
-    assert viewer_model.mouse_over_canvas
-    assert viewer_model.status == 'Ready'
+    assert viewer.mouse_over_canvas
+    assert viewer.status == 'Ready'
 
     canvas.leaveEvent(QEvent(QEvent.Type.Leave))
-    assert not viewer_model.mouse_over_canvas
-    assert viewer_model.status == ''
+    assert not viewer.mouse_over_canvas
+    assert viewer.status == ''
 
 
 def test_qt_viewer_accepts_custom_welcome_tips(
-    qtbot: QtBot, viewer_model: ViewerModel
+    qtbot: QtBot, viewer: Viewer
 ) -> None:
-    viewer = QtViewer(viewer=viewer_model, tips=('first tip', 'second tip'))
+    viewer = QtViewer(viewer=viewer, tips=('first tip', 'second tip'))
     qtbot.addWidget(
         viewer, before_close_func=lambda widget: widget._instances.clear()
     )
@@ -724,22 +696,22 @@ def test_qt_viewer_accepts_custom_welcome_tips(
         )
 
 
-def test_create_non_empty_viewer_model_initializes_world_units(
+def test_create_non_empty_viewer_initializes_world_units(
     qtbot: QtBot,
 ) -> None:
     from pint import get_application_registry
 
     reg = get_application_registry()
-    viewer_model = ViewerModel()
-    image_um = viewer_model.add_image(np.zeros((10, 10)), units=('um', 'um'))
-    viewer_model.layers.units = ('nm', 'nm')
+    viewer = Viewer()
+    image_um = viewer.add_image(np.zeros((10, 10)), units=('um', 'um'))
+    viewer.layers.units = ('nm', 'nm')
 
-    viewer = QtViewer(viewer=viewer_model)
+    viewer = QtViewer(viewer=viewer)
     qtbot.addWidget(
         viewer, before_close_func=lambda widget: widget._instances.clear()
     )
 
-    assert viewer_model.layers.units == (reg.nm, reg.nm)
+    assert viewer.layers.units == (reg.nm, reg.nm)
     assert viewer.canvas.layer_to_visual[image_um]._world_units == (
         reg.nm,
         reg.nm,
@@ -876,15 +848,15 @@ def test_label_colors_matching_widget_direct(
         )
 
 
-def test_axis_labels(viewer_model: ViewerModel, qt_viewer: QtViewer) -> None:
-    viewer_model.dims.ndisplay = 3
-    viewer_model.axes.visible = True
+def test_axis_labels(viewer: Viewer, qt_viewer: QtViewer) -> None:
+    viewer.dims.ndisplay = 3
+    viewer.axes.visible = True
 
-    layer = viewer_model.add_image(np.zeros((2, 2, 2)), scale=(1, 2, 4))
+    layer = viewer.add_image(np.zeros((2, 2, 2)), scale=(1, 2, 4))
 
     layer_visual = qt_viewer.layer_to_visual[layer]
     axes_visual = qt_viewer.canvas._viewer_overlay_to_visual[
-        viewer_model.scene.overlays.axes
+        viewer.scene.overlays.axes
     ][0]
 
     layer_visual_size = vispy_image_scene_size(layer_visual)
@@ -994,13 +966,13 @@ def test_background_color(
 
 @pytest.mark.show_qt_viewer
 def test_rendering_interpolation(
-    qtbot: QtBot, qt_viewer: QtViewer, viewer_model: ViewerModel
+    qtbot: QtBot, qt_viewer: QtViewer, viewer: Viewer
 ) -> None:
     data = np.zeros((20, 20, 20), dtype=np.uint8)
     data[1:-1, 1:-1, 1:-1] = 5
-    layer = viewer_model.add_labels(data, opacity=1, rendering='translucent')
+    layer = viewer.add_labels(data, opacity=1, rendering='translucent')
     layer.selected_label = 5
-    viewer_model.dims.ndisplay = 3
+    viewer.dims.ndisplay = 3
     QApplication.processEvents()
     canvas_screenshot = qt_viewer.screenshot(flash=False, size=[400, 400])
     shape = np.array(canvas_screenshot.shape[:2])
@@ -1014,13 +986,13 @@ def test_rendering_interpolation(
 @pytest.mark.parametrize('mode', ['direct', 'random'])
 def test_selection_collision(
     qt_viewer: QtViewer,
-    viewer_model: ViewerModel,
+    viewer: Viewer,
     mode: typing.Literal['direct', 'random'],
 ) -> None:
     data = np.zeros((10, 10), dtype=np.uint8)
     data[:5] = 10
     data[5:] = 10 + 49
-    layer = viewer_model.add_labels(data, opacity=1)
+    layer = viewer.add_labels(data, opacity=1)
     layer.selected_label = 10
     if mode == 'direct':
         layer.colormap = DirectLabelColormap(
@@ -1050,11 +1022,9 @@ def test_selection_collision(
 
 
 @pytest.mark.show_qt_viewer
-def test_all_supported_dtypes(
-    qt_viewer: QtViewer, viewer_model: ViewerModel
-) -> None:
+def test_all_supported_dtypes(qt_viewer: QtViewer, viewer: Viewer) -> None:
     data = np.zeros((10, 10), dtype=np.uint8)
-    layer_ = viewer_model.add_labels(data, opacity=1)
+    layer_ = viewer.add_labels(data, opacity=1)
 
     for i, dtype in enumerate(NUMPY_INTEGER_TYPES, start=1):
         data = np.full((10, 10), i, dtype=dtype)
@@ -1101,9 +1071,7 @@ def test_all_supported_dtypes(
 
 @pytest.mark.slow
 @pytest.mark.show_qt_viewer
-def test_more_than_uint16_colors(
-    qt_viewer: QtViewer, viewer_model: ViewerModel
-) -> None:
+def test_more_than_uint16_colors(qt_viewer: QtViewer, viewer: Viewer) -> None:
     pytest.importorskip('numba')
     # this test is slow (10s locally)
     data = np.zeros((10, 10), dtype=np.uint32)
@@ -1116,7 +1084,7 @@ def test_more_than_uint16_colors(
         )
     }
     colors[None] = (0, 0, 0, 1)
-    layer = viewer_model.add_labels(
+    layer = viewer.add_labels(
         data, opacity=1, colormap=DirectLabelColormap(color_dict=colors)
     )
     assert layer._slice.image.view.dtype == np.float32
@@ -1135,14 +1103,12 @@ def test_more_than_uint16_colors(
 
 @skip_local_popups
 @pytest.mark.show_qt_viewer
-def test_scale_bar_colored(
-    qt_viewer: QtViewer, viewer_model: ViewerModel, qtbot
-) -> None:
-    scale_bar = viewer_model.canvas.overlays.scale_bar
+def test_scale_bar_colored(qt_viewer: QtViewer, viewer: Viewer, qtbot) -> None:
+    scale_bar = viewer.canvas.overlays.scale_bar
 
     # Add black image
     data = np.zeros((2, 2))
-    viewer_model.add_image(data)
+    viewer.add_image(data)
 
     # Check scale bar is not visible (all the canvas is black - `[0, 0, 0, 255]`)
     def check_all_black():
@@ -1187,14 +1153,12 @@ def test_scale_bar_colored(
 
 @skip_local_popups
 @pytest.mark.show_qt_viewer
-def test_scale_bar_ticks(
-    qt_viewer: QtViewer, viewer_model: ViewerModel, qtbot
-) -> None:
-    scale_bar = viewer_model.canvas.overlays.scale_bar
+def test_scale_bar_ticks(qt_viewer: QtViewer, viewer: Viewer, qtbot) -> None:
+    scale_bar = viewer.canvas.overlays.scale_bar
 
     # Add black image
     data = np.zeros((2, 2))
-    viewer_model.add_image(data)
+    viewer.add_image(data)
 
     # Check scale bar is not visible (all the canvas is black - `[0, 0, 0, 255]`)
     def check_all_black():
@@ -1273,7 +1237,7 @@ def test_dask_cache():
 
 @pytest.mark.show_qt_viewer
 def test_viewer_drag_to_zoom(
-    qt_viewer: QtViewer, viewer_model: ViewerModel, qtbot: QtBot
+    qt_viewer: QtViewer, viewer: Viewer, qtbot: QtBot
 ) -> None:
     """Test drag to zoom mouse binding."""
     canvas = qt_viewer.canvas
@@ -1286,15 +1250,13 @@ def test_viewer_drag_to_zoom(
 
     zoom_area_mock = mock.Mock(side_effect=zoom_callback)
 
-    viewer_model.canvas.overlays._zoom_box.events.zoom_area.connect(
-        zoom_area_mock
-    )
+    viewer.canvas.overlays._zoom_box.events.zoom_area.connect(zoom_area_mock)
 
     # Add an image layer
     data = np.random.default_rng(0).random((10, 20))
-    viewer_model.add_image(data)
+    viewer.add_image(data)
 
-    assert viewer_model.canvas.overlays._zoom_box.visible is False, (
+    assert viewer.canvas.overlays._zoom_box.visible is False, (
         'Zoom box should be hidden initially'
     )
     qtbot.wait(10)
@@ -1303,7 +1265,7 @@ def test_viewer_drag_to_zoom(
         pos=(0, 0), modifiers=('Alt',), button=0
     )
     qtbot.wait(10)
-    assert viewer_model.canvas.overlays._zoom_box.visible is True, (
+    assert viewer.canvas.overlays._zoom_box.visible is True, (
         'Zoom box should be visible after press'
     )
 
@@ -1317,10 +1279,10 @@ def test_viewer_drag_to_zoom(
         ),
     )
     qtbot.wait(10)
-    assert viewer_model.canvas.overlays._zoom_box.visible is True, (
+    assert viewer.canvas.overlays._zoom_box.visible is True, (
         'Zoom box should remain visible during drag'
     )
-    assert viewer_model.canvas.overlays._zoom_box.position == (
+    assert viewer.canvas.overlays._zoom_box.position == (
         (0, 0),
         (100, 100),
     ), 'Zoom box canvas positions should match the drag coordinates'
@@ -1330,7 +1292,7 @@ def test_viewer_drag_to_zoom(
         pos=(100, 100), modifiers=('Alt',), button=0
     )
     qtbot.wait(10)
-    assert viewer_model.canvas.overlays._zoom_box.visible is False, (
+    assert viewer.canvas.overlays._zoom_box.visible is False, (
         'Zoom box should be hidden after release'
     )
 
@@ -1339,22 +1301,20 @@ def test_viewer_drag_to_zoom(
 
 @pytest.mark.show_qt_viewer
 def test_viewer_drag_to_zoom_with_cancel(
-    qt_viewer: QtViewer, viewer_model: ViewerModel, qtbot: QtBot
+    qt_viewer: QtViewer, viewer: Viewer, qtbot: QtBot
 ) -> None:
     """Test drag to zoom mouse binding."""
     canvas = qt_viewer.canvas
 
     zoom_area_mock = mock.Mock()
 
-    viewer_model.canvas.overlays._zoom_box.events.zoom_area.connect(
-        zoom_area_mock
-    )
+    viewer.canvas.overlays._zoom_box.events.zoom_area.connect(zoom_area_mock)
 
     # Add an image layer
     data = np.random.default_rng(0).random((10, 20))
-    viewer_model.add_image(data)
+    viewer.add_image(data)
 
-    assert viewer_model.canvas.overlays._zoom_box.visible is False, (
+    assert viewer.canvas.overlays._zoom_box.visible is False, (
         'Zoom box should be hidden initially'
     )
     qtbot.wait(10)
@@ -1363,7 +1323,7 @@ def test_viewer_drag_to_zoom_with_cancel(
         pos=(0, 0), modifiers=('Alt',), button=0
     )
     qtbot.wait(10)
-    assert viewer_model.canvas.overlays._zoom_box.visible is True, (
+    assert viewer.canvas.overlays._zoom_box.visible is True, (
         'Zoom box should be visible after press'
     )
 
@@ -1377,10 +1337,10 @@ def test_viewer_drag_to_zoom_with_cancel(
         ),
     )
     qtbot.wait(10)
-    assert viewer_model.canvas.overlays._zoom_box.visible is False, (
+    assert viewer.canvas.overlays._zoom_box.visible is False, (
         'Zoom box should remain visible during drag'
     )
-    assert viewer_model.canvas.overlays._zoom_box.position == (
+    assert viewer.canvas.overlays._zoom_box.position == (
         (0, 0),
         (0, 0),
     ), 'Zoom box canvas positions should match the drag coordinates'
@@ -1389,7 +1349,7 @@ def test_viewer_drag_to_zoom_with_cancel(
 
 @pytest.mark.show_qt_viewer
 def test_viewer_drag_to_zoom_3d_data(
-    qt_viewer: QtViewer, viewer_model: ViewerModel, qtbot: QtBot
+    qt_viewer: QtViewer, viewer: Viewer, qtbot: QtBot
 ) -> None:
     """Regression test: drag-to-zoom must not raise ValidationError with 3D data.
 
@@ -1400,22 +1360,20 @@ def test_viewer_drag_to_zoom_3d_data(
     canvas = qt_viewer.canvas
 
     zoom_area_mock = mock.Mock()
-    viewer_model.canvas.overlays._zoom_box.events.zoom_area.connect(
-        zoom_area_mock
-    )
+    viewer.canvas.overlays._zoom_box.events.zoom_area.connect(zoom_area_mock)
 
     # 3D data so that event.position will have 3 components
     data = np.random.default_rng(0).random((10, 20, 20))
-    viewer_model.add_image(data)
-    assert viewer_model.dims.ndim == 3
-    assert viewer_model.dims.ndisplay == 2
+    viewer.add_image(data)
+    assert viewer.dims.ndim == 3
+    assert viewer.dims.ndisplay == 2
 
     qtbot.wait(10)
     canvas._scene_canvas.events.mouse_press(
         pos=(0, 0), modifiers=('Alt',), button=0
     )
     qtbot.wait(10)
-    assert viewer_model.canvas.overlays._zoom_box.visible is True
+    assert viewer.canvas.overlays._zoom_box.visible is True
 
     canvas._scene_canvas.events.mouse_move(
         pos=(100, 100),
@@ -1433,7 +1391,7 @@ def test_viewer_drag_to_zoom_3d_data(
     )
     qtbot.wait(10)
 
-    assert viewer_model.canvas.overlays._zoom_box.visible is False, (
+    assert viewer.canvas.overlays._zoom_box.visible is False, (
         'Zoom box should be hidden after release'
     )
     # zoom_area should have been set with 2-tuples (last 2 world coords)

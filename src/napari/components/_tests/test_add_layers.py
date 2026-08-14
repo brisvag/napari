@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from napari._tests.utils import layer_test_data
-from napari.components.viewer_model import ViewerModel
+from napari.components.viewer import Viewer
 from napari.layers._source import Source
 
 img = np.random.rand(10, 10)
@@ -25,7 +25,7 @@ def test_add_layers_with_plugins(layer_datum):
         'napari.plugins.io.read_data_with_plugins',
         MagicMock(return_value=([layer_datum], TEST_PLUGIN_NAME)),
     ):
-        v = ViewerModel()
+        v = Viewer()
         v._add_layers_with_plugins(['mock_path'], stack=False)
         layertypes = [layer._type_string for layer in v.layers]
         assert layertypes == [layer_datum[2]]
@@ -40,7 +40,7 @@ def test_add_layers_with_plugins_full_layers(layer):
         'napari.plugins.io.read_data_with_plugins',
         MagicMock(return_value=([layer], TEST_PLUGIN_NAME)),
     ):
-        v = ViewerModel()
+        v = Viewer()
         v._add_layers_with_plugins(['mock_path'], stack=False)
         assert len(v.layers) == 1
         assert v.layers[0].source.path == 'mock_path'
@@ -55,7 +55,7 @@ def test_add_layers_with_plugins_layer_mix(layer):
         # return one instantiated layer and one layer tuple
         MagicMock(return_value=([layer, layer_tuple], TEST_PLUGIN_NAME)),
     ):
-        v = ViewerModel()
+        v = Viewer()
         v._add_layers_with_plugins(['mock_path'], stack=False)
         # both were added
         assert len(v.layers) == 2
@@ -70,13 +70,13 @@ def test_add_layers_with_plugins_layer_mix(layer):
 )
 def test_plugin_returns_nothing():
     """Test that a plugin returning nothing adds nothing to the Viewer."""
-    v = ViewerModel()
+    v = Viewer()
     v._add_layers_with_plugins(['mock_path'], stack=False)
     assert not v.layers
 
 
 @patch(
-    'napari.components.viewer_model._validate_paths_exist',
+    'napari.components.viewer._validate_paths_exist',
 )
 @patch(
     'napari.plugins.io.read_data_with_plugins',
@@ -84,7 +84,7 @@ def test_plugin_returns_nothing():
 )
 def test_viewer_open(_mock_validate):  # noqa: PT019
     """Test that a plugin to returning an image adds stuff to the viewer."""
-    viewer = ViewerModel()
+    viewer = Viewer()
     assert len(viewer.layers) == 0
     viewer.open('mock_path.tif')
     assert len(viewer.layers) == 1
@@ -104,7 +104,7 @@ def test_viewer_open(_mock_validate):  # noqa: PT019
 
 
 def test_viewer_open_no_plugin(tmp_path):
-    viewer = ViewerModel()
+    viewer = Viewer()
     fname = tmp_path / 'gibberish.gbrsh'
     fname.touch()
     with pytest.raises(ValueError, match=r'.*gibberish.gbrsh.*'):
@@ -128,7 +128,7 @@ def test_add_layers_with_plugins_and_kwargs(layer_data, kwargs):
         'napari.plugins.io.read_data_with_plugins',
         MagicMock(return_value=(layer_data, TEST_PLUGIN_NAME)),
     ):
-        v = ViewerModel()
+        v = Viewer()
         v._add_layers_with_plugins(['mock_path'], kwargs=kwargs, stack=False)
         expected_source = Source(path='mock_path', reader_plugin='testimpl')
         for layer in v.layers:
@@ -142,7 +142,7 @@ def test_add_layers_with_plugins_and_kwargs(layer_data, kwargs):
 
 def test_add_points_layer_with_different_range_updates_all_slices():
     """See https://github.com/napari/napari/pull/4819"""
-    viewer = ViewerModel()
+    viewer = Viewer()
 
     # Adding the first point should show the point
     initial_point = viewer.add_points([[10, 5, 5]])
@@ -221,7 +221,7 @@ def test_add_points_layer_with_different_range_updates_all_slices():
 
 
 def test_last_point_is_visible_in_viewport():
-    viewer = ViewerModel()
+    viewer = Viewer()
 
     # Removing the last point while viewing it should cause
     # us to view the first point due to the layer's new extent.
@@ -250,7 +250,7 @@ def test_last_point_is_visible_in_viewport():
 
 
 def test_dimension_change_is_visible_in_viewport():
-    viewer = ViewerModel()
+    viewer = Viewer()
 
     # Adding a 4d point leads to a visible 4d point with dims.point
     # having the same values.

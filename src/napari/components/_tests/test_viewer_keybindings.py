@@ -16,7 +16,7 @@ from napari.components._viewer_key_bindings import (
     toggle_theme,
     toggle_unselected_visibility,
 )
-from napari.components.viewer_model import ViewerModel
+from napari.components.viewer import Viewer
 from napari.layers.points import Points
 from napari.settings import get_settings
 from napari.utils.theme import available_themes, get_system_theme
@@ -24,7 +24,7 @@ from napari.utils.theme import available_themes, get_system_theme
 
 @pytest.mark.key_bindings
 def test_theme_toggle_keybinding():
-    viewer = ViewerModel()
+    viewer = Viewer()
     assert viewer.theme == get_settings().appearance.theme
     assert viewer.theme != 'light'
     toggle_theme(viewer)
@@ -50,7 +50,7 @@ def test_theme_toggle_keybinding():
 
 def test_theme_toggle_from_system_theme():
     get_settings().appearance.theme = 'system'
-    viewer = ViewerModel()
+    viewer = Viewer()
     assert viewer.theme == 'system'
     actual_initial_theme = get_system_theme()
     toggle_theme(viewer)
@@ -72,7 +72,7 @@ def test_theme_toggle_from_system_theme():
 
 
 def test_hold_for_pan_zoom():
-    viewer = ViewerModel()
+    viewer = Viewer()
     data = [[1, 3], [8, 4], [10, 10], [15, 4]]
     layer = Points(data, size=1)
     viewer.layers.append(layer)
@@ -168,7 +168,7 @@ def test_show_only_layer_below():
 @pytest.mark.parametrize(('layer_class', 'data', 'ndim'), layer_test_data)
 def test_rotate_layers(layer_class, data, ndim):
     """Test rotate layers works with all layer types/data"""
-    viewer = ViewerModel()
+    viewer = Viewer()
     layer = add_layer_by_type(viewer, layer_class, data, visible=True)
     np.testing.assert_array_equal(
         layer.affine.rotate, np.eye(ndim, dtype=float)
@@ -181,7 +181,7 @@ def test_rotate_layers(layer_class, data, ndim):
 
 def test_rotate_layers_in_3D():
     """Test that rotate layers is disabled in 3D viewer mode"""
-    viewer = ViewerModel()
+    viewer = Viewer()
     layer = add_layer_by_type(
         viewer, Points, np.array([[1, 2, 3]]), visible=True
     )
@@ -197,7 +197,7 @@ def test_rotate_layers_in_3D():
 
 def make_viewer_with_three_layers():
     """Helper function to create a viewer with three layers"""
-    viewer = ViewerModel()
+    viewer = Viewer()
     layer1 = Points()
     layer2 = Points()
     layer3 = Points()

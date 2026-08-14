@@ -43,7 +43,7 @@ if TYPE_CHECKING:
     from enum import Enum, EnumMeta
     from typing import Any
 
-    from napari.viewer import ViewerModel
+    from napari.components.viewer import Viewer
 
 
 class QtLayerButtons(QFrame):
@@ -68,7 +68,7 @@ class QtLayerButtons(QFrame):
         Napari viewer containing the rendered scene, layers, and controls.
     """
 
-    def __init__(self, viewer: ViewerModel) -> None:
+    def __init__(self, viewer: Viewer) -> None:
         super().__init__()
 
         self.viewer = viewer
@@ -258,7 +258,7 @@ class QtViewerButtons(QFrame):
         Napari viewer containing the rendered scene, layers, and controls.
     """
 
-    def __init__(self, viewer: ViewerModel) -> None:
+    def __init__(self, viewer: Viewer) -> None:
         super().__init__()
 
         self.viewer = viewer

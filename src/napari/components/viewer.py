@@ -24,7 +24,7 @@ import numpy as np
 
 # This cannot be condition to TYPE_CHECKING or the stubgen fails
 # with undefined Context.
-from pydantic import Field, PrivateAttr, field_validator
+from pydantic import Field, PrivateAttr
 from typing_extensions import deprecated
 
 from napari import layers
@@ -89,7 +89,6 @@ from napari.utils.key_bindings import KeymapProvider
 from napari.utils.misc import ensure_list_of_layer_data_tuple, is_sequence
 from napari.utils.mouse_bindings import MousemapProviderPydantic
 from napari.utils.progress import progress
-from napari.utils.theme import available_themes, is_theme_available
 
 if TYPE_CHECKING:
     from npe2.types import SampleDataCreator
@@ -116,7 +115,7 @@ EXCLUDE_DICT = {
 }
 EXCLUDE_JSON = EXCLUDE_DICT.union({'layers', 'active_layer'})
 
-__all__ = ['ViewerModel', 'valid_add_kwargs']
+__all__ = ['Viewer', 'valid_add_kwargs']
 
 
 logger = logging.getLogger(__name__)
@@ -136,7 +135,7 @@ def _validate_paths_exist(paths: list[PathLike]) -> None:
 
 
 # KeymapProvider & MousemapProvider should eventually be moved off the ViewerModel
-class ViewerModel(KeymapProvider, MousemapProviderPydantic, EventedModel):
+class Viewer(KeymapProvider, MousemapProviderPydantic, EventedModel):
     """Viewer containing the rendered scene, layers, and controlling elements
     including dimension sliders, and control bars for color limits.
 
@@ -359,16 +358,6 @@ class ViewerModel(KeymapProvider, MousemapProviderPydantic, EventedModel):
         """Update camera synced mode based on settings."""
         settings = get_settings()
         self.scene.camera.synced = settings.application.synced_camera
-
-    @field_validator('theme')
-    @classmethod
-    def _valid_theme(cls, v):
-        if not is_theme_available(v):
-            raise ValueError(
-                f"Theme '{v}' not found; options are {', '.join(available_themes())}."
-            )
-
-        return v
 
     def json(self, **kwargs):
         """Serialize to json."""
@@ -1809,7 +1798,7 @@ def prune_kwargs(kwargs: Mapping[str, Any], layer_type: str) -> dict[str, Any]:
     >>> prune_kwargs(test_kwargs, 'points')
     {'scale': (0.75, 1), 'blending': 'additive', 'size': 10}
     """
-    add_method = getattr(ViewerModel, 'add_' + layer_type, None)
+    add_method = getattr(Viewer, 'add_' + layer_type, None)
     if not add_method or layer_type == 'layer':
         raise ValueError(f'Invalid layer_type: {layer_type}')
 
@@ -1822,10 +1811,10 @@ def prune_kwargs(kwargs: Mapping[str, Any], layer_type: str) -> dict[str, Any]:
 def valid_add_kwargs() -> dict[str, set[str]]:
     """Return a dict where keys are layer types & values are valid kwargs."""
     valid = {}
-    for meth in dir(ViewerModel):
+    for meth in dir(Viewer):
         if not meth.startswith('add_') or meth[4:] == 'layer':
             continue
-        params = inspect.signature(getattr(ViewerModel, meth)).parameters
+        params = inspect.signature(getattr(Viewer, meth)).parameters
         valid[meth[4:]] = set(params) - {'self', 'kwargs'}
     return valid
 
@@ -1839,4 +1828,4 @@ for _layer in (
     layers.Vectors,
 ):
     func = create_add_method(_layer)
-    setattr(ViewerModel, func.__name__, func)
+    setattr(Viewer, func.__name__, func)

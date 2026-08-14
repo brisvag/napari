@@ -2,7 +2,7 @@ import dask.array as da
 import numpy as np
 import pytest
 
-from napari.components import ViewerModel
+from napari.components import Viewer
 from napari.utils.colormaps import (
     AVAILABLE_COLORMAPS,
     CMYBGR,
@@ -97,7 +97,7 @@ ids = [
 @pytest.mark.parametrize(('shape', 'kwargs'), multi_channel_test_data, ids=ids)
 def test_multichannel(shape, kwargs):
     """Test adding multichannel image."""
-    viewer = ViewerModel()
+    viewer = Viewer()
     np.random.seed(0)
     data = np.random.random(shape or (15, 10, 5))
     channel_axis = kwargs.pop('channel_axis', -1)
@@ -163,7 +163,7 @@ def test_multichannel(shape, kwargs):
 
 def test_multichannel_multiscale():
     """Test adding multichannel multiscale."""
-    viewer = ViewerModel()
+    viewer = Viewer()
     np.random.seed(0)
     shapes = [(40, 20, 4), (20, 10, 4), (10, 5, 4)]
     np.random.seed(0)
@@ -186,7 +186,7 @@ def test_multichannel_multiscale():
 
 def test_multichannel_implicit_multiscale():
     """Test adding multichannel implicit multiscale."""
-    viewer = ViewerModel()
+    viewer = Viewer()
     np.random.seed(0)
     shapes = [(40, 20, 4), (20, 10, 4), (10, 5, 4)]
     np.random.seed(0)
@@ -209,7 +209,7 @@ def test_multichannel_implicit_multiscale():
 
 def test_multichannel_dask_array():
     """Test adding multichannel dask array."""
-    viewer = ViewerModel()
+    viewer = Viewer()
     np.random.seed(0)
     data = da.random.random((2, 10, 10, 5))
     viewer.add_image(data, channel_axis=0)
@@ -221,7 +221,7 @@ def test_multichannel_dask_array():
 
 def test_forgot_multichannel_error_hint():
     """Test that a helpful error is raised when channel_axis is not used."""
-    viewer = ViewerModel()
+    viewer = Viewer()
     np.random.seed(0)
     data = da.random.random((15, 10, 5))
     with pytest.raises(TypeError) as e:
@@ -231,7 +231,7 @@ def test_forgot_multichannel_error_hint():
 
 def test_multichannel_index_error_hint():
     """Test multichannel error when arg length != n_channels."""
-    viewer = ViewerModel()
+    viewer = Viewer()
     np.random.seed(0)
     data = da.random.random((5, 10, 5))
     with pytest.raises(IndexError) as e:

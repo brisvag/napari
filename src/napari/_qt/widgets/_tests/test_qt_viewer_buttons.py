@@ -11,19 +11,18 @@ from napari._qt.widgets.qt_viewer_buttons import (
     QtLayerButtons,
     QtViewerButtons,
 )
-from napari.components.viewer_model import ViewerModel
+from napari.components.viewer import Viewer
 from napari.utils.camera_orientations import (
     DepthAxisOrientation,
     HorizontalAxisOrientation,
     VerticalAxisOrientation,
 )
-from napari.viewer import Viewer
 
 
 @pytest.fixture
 def qt_viewer_buttons(qtbot):
     # create viewer model and buttons
-    viewer = ViewerModel()
+    viewer = Viewer()
     viewer_buttons = QtViewerButtons(viewer)
     qtbot.addWidget(viewer_buttons)
 
@@ -295,7 +294,7 @@ def test_toggle_ndisplay(mock_app_model, qt_viewer_buttons, qtbot):
     with app.injection_store.register(
         providers=[
             (lambda: viewer, Viewer, 100),
-            (lambda: viewer, ViewerModel, 100),
+            (lambda: viewer, Viewer, 100),
         ]
     ):
         qtbot.mouseClick(viewer_buttons.ndisplayButton, Qt.LeftButton)
@@ -338,7 +337,7 @@ def test_transpose_rotate_button(monkeypatch, qt_viewer_buttons, qtbot):
 @pytest.fixture
 def qt_layer_buttons(qtbot):
     # create viewer model and buttons
-    viewer = ViewerModel()
+    viewer = Viewer()
     layer_buttons = QtLayerButtons(viewer)
     qtbot.addWidget(layer_buttons)
 

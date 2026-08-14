@@ -27,7 +27,7 @@ from napari.utils.tips import (
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from napari.components.viewer_model import ViewerModel
+    from napari.components.viewer import Viewer
 
 
 WELCOME_SHORTCUTS = (
@@ -59,7 +59,7 @@ class QtWelcomeWidget(QWidget):
     def __init__(
         self,
         parent: QWidget | None,
-        viewer: ViewerModel,
+        viewer: Viewer,
         tips: Sequence[str] | None = None,
     ) -> None:
         super().__init__(parent)

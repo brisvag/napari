@@ -101,7 +101,7 @@ if TYPE_CHECKING:
     from qtpy.QtGui import QHideEvent, QImage, QShowEvent
 
     from napari._qt.widgets.qt_viewer_tour import GuidedTour
-    from napari.viewer import Viewer
+    from napari.components.viewer import Viewer
 
 _sentinel = object()
 
@@ -717,7 +717,7 @@ class Window:
 
     def __init__(
         self,
-        viewer: Viewer,
+        viewer: ViewerModel,
         *,
         show: bool = True,
         show_welcome_screen: bool = True,
@@ -1663,6 +1663,24 @@ class Window:
         if hasattr(self, '_qt_window'):
             self._qt_window.restart()
 
+    def update_console(self, variables):
+        """Update console's namespace with desired variables.
+
+        Parameters
+        ----------
+        variables : dict, str or list/tuple of str
+            The variables to inject into the console's namespace.  If a dict, a
+            simple update is done.  If a str, the string is assumed to have
+            variable names separated by spaces.  A list/tuple of str can also
+            be used to give the variable names.  If just the variable names are
+            give (list/tuple/str) then the variable values looked up in the
+            callers frame.
+        """
+        if self._qt_viewer._console is None:
+            self._qt_viewer.add_to_console_backlog(variables)
+            return
+        self._qt_viewer.console.push(variables)
+
     def _screenshot(
         self,
         size: tuple[int, int] | None = None,
@@ -1869,6 +1887,9 @@ class Window:
             self._qt_window.close()
             del self._qt_window
 
+    def current_viewer(self) -> Viewer | None:
+        return self._qt_window.current_viewer()
+
     def _open_preferences_dialog(self) -> PreferencesDialog:
         """Edit preferences from the menubar."""
         if self._pref_dialog is None:
@@ -1908,7 +1929,7 @@ class Window:
 
 def _instantiate_dock_widget(wdg_cls, viewer: Viewer):
     # if the signature is looking a for a napari viewer, pass it.
-    from napari.viewer import Viewer, ViewerModel
+    from napari.components.viewer import Viewer
 
     kwargs = {}
     try:
@@ -1926,8 +1947,8 @@ def _instantiate_dock_widget(wdg_cls, viewer: Viewer):
                 Viewer,
                 'napari.viewer.ViewerModel',
                 'napari.components.ViewerModel',
-                'napari.components.viewer_model.ViewerModel',
-                ViewerModel,
+                'napari.components.viewer.ViewerModel',
+                Viewer,
             ):
                 kwargs[param.name] = PublicOnlyProxy(viewer)
                 break
