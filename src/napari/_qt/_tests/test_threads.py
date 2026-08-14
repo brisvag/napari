@@ -3,18 +3,18 @@ from unittest.mock import MagicMock
 import pytest
 
 from napari._qt.threads.status_checker import StatusChecker
-from napari.components import ViewerModel
+from napari.components import Viewer
 
 
 @pytest.mark.usefixtures('qapp')
 def test_create():
-    StatusChecker(ViewerModel())
+    StatusChecker(Viewer())
 
 
 @pytest.mark.usefixtures('qapp')
 def test_no_emmit_no_ref(monkeypatch):
     """Calling calculate_status should not emit after viewer is deleted."""
-    model = ViewerModel()
+    model = Viewer()
     status_checker = StatusChecker(model)
     monkeypatch.setattr(
         status_checker,
@@ -27,7 +27,7 @@ def test_no_emmit_no_ref(monkeypatch):
 
 def test_terminate_no_ref(monkeypatch):
     """Test that the thread terminates when the viewer is garbage collected."""
-    model = ViewerModel()
+    model = Viewer()
     status_checker = StatusChecker(model)
     del model
     status_checker.run()
@@ -38,7 +38,7 @@ def test_waiting_on_no_request(monkeypatch, qtbot):
     def _check_status(value):
         return value == ('Ready', '')
 
-    model = ViewerModel()
+    model = Viewer()
     model.mouse_over_canvas = True
     status_checker = StatusChecker(model)
     status_checker.start()

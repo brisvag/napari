@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from napari.components.viewer_model import ViewerModel
+from napari.components.viewer_model import Viewer
 
 dtypes = [
     np.dtype(bool),
@@ -32,7 +32,7 @@ dtypes = [
 def test_image_dytpes(dtype):
     """Test different dtype images."""
     np.random.seed(0)
-    viewer = ViewerModel()
+    viewer = Viewer()
 
     # add dtype image data
     data = np.random.randint(20, size=(30, 40)).astype(dtype)

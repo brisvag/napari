@@ -11,7 +11,7 @@ from skimage import data
 
 import napari
 from napari._qt.widgets.qt_viewer_buttons import QtViewerPushButton
-from napari.components import ViewerModel
+from napari.components import Viewer
 from napari.utils.action_manager import action_manager
 
 
@@ -51,7 +51,7 @@ layer_buttons.layout().insertWidget(3, rot_button)
 
 
 def register_action():
-    # Here we pass ViewerModel as the KeymapProvider as we want it to handle the shortcuts.
+    # Here we pass Viewer as the KeymapProvider as we want it to handle the shortcuts.
     # we could also pass none and bind the shortcuts at the window level - though we
     # are trying to not change the KeymapProvider API too much for now.
     # we give an action name to the action for configuration purposes as we need
@@ -63,7 +63,7 @@ def register_action():
         name='napari:rotate45',
         command=rotate45,
         description='Rotate layer 0 by 45deg',
-        keymapprovider=ViewerModel,
+        keymapprovider=Viewer,
     )
 
 

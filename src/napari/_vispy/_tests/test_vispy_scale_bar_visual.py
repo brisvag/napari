@@ -3,11 +3,11 @@ import pytest
 
 from napari._vispy.overlays.scale_bar import VispyScaleBarOverlay
 from napari._vispy.utils.qt_font import FontInfo
-from napari.components import ViewerModel
+from napari.components import Viewer
 from napari.components.overlays import ScaleBarOverlay
 
 
-def test_scale_bar_instantiation(viewer_model: ViewerModel):
+def test_scale_bar_instantiation(viewer_model: Viewer):
     img = viewer_model.add_image(data=np.zeros((10, 10)), name='test')
     model = ScaleBarOverlay()
     font_info = FontInfo()
@@ -25,7 +25,7 @@ def test_scale_bar_instantiation(viewer_model: ViewerModel):
 
 
 def test_scale_bar_inconsistent_units_default_to_pixel(
-    viewer_model: ViewerModel,
+    viewer_model: Viewer,
 ):
     img1 = viewer_model.add_image(data=np.zeros((10, 10)), name='test1')
     _img2 = viewer_model.add_image(

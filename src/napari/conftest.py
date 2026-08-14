@@ -65,7 +65,7 @@ if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
 
     from napari._qt.qt_viewer import QtViewer
-    from napari.components import ViewerModel
+    from napari.components import Viewer
 
 
 # touch ~/.Xauthority for Xlib support, must happen before importing pyautogui
@@ -302,15 +302,15 @@ def tmp_plugin(npe2pm_: TestPluginManager):
 
 
 @pytest.fixture
-def viewer_model() -> ViewerModel:
-    from napari.components import ViewerModel
+def viewer_model() -> Viewer:
+    from napari.components import Viewer
 
-    return ViewerModel()
+    return Viewer()
 
 
 @pytest.fixture
 def qt_viewer_(
-    qtbot: QtBot, viewer_model: ViewerModel, monkeypatch: pytest.MonkeyPatch
+    qtbot: QtBot, viewer_model: Viewer, monkeypatch: pytest.MonkeyPatch
 ) -> QtViewer:
     from napari._qt.qt_viewer import QtViewer
 

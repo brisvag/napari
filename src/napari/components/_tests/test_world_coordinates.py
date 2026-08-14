@@ -3,12 +3,12 @@ import warnings
 import numpy as np
 import pytest
 
-from napari.components import ViewerModel
+from napari.components import Viewer
 
 
 def test_translated_images():
     """Test two translated images."""
-    viewer = ViewerModel()
+    viewer = Viewer()
     np.random.seed(0)
     data = np.random.random((10, 10, 10))
     viewer.add_image(data)
@@ -24,7 +24,7 @@ def test_translated_images():
 
 def test_scaled_images():
     """Test two scaled images."""
-    viewer = ViewerModel()
+    viewer = Viewer()
     np.random.seed(0)
     data = np.random.random((10, 10, 10))
     viewer.add_image(data)
@@ -41,7 +41,7 @@ def test_scaled_images():
 
 def test_scaled_and_translated_images():
     """Test scaled and translated images."""
-    viewer = ViewerModel()
+    viewer = Viewer()
     np.random.seed(0)
     data = np.random.random((10, 10, 10))
     viewer.add_image(data)
@@ -58,7 +58,7 @@ def test_scaled_and_translated_images():
 
 def test_both_scaled_and_translated_images():
     """Test both scaled and translated images."""
-    viewer = ViewerModel()
+    viewer = Viewer()
     np.random.seed(0)
     data = np.random.random((10, 10, 10))
     viewer.add_image(data, scale=[2, 1, 1])
@@ -74,7 +74,7 @@ def test_both_scaled_and_translated_images():
 
 def test_no_warning_non_affine_slicing():
     """Test no warning if not slicing into an affine."""
-    viewer = ViewerModel()
+    viewer = Viewer()
     np.random.seed(0)
     data = np.random.random((10, 10, 10))
     viewer.add_image(data, scale=[2, 1, 1], translate=[10, 15, 20])
@@ -85,7 +85,7 @@ def test_no_warning_non_affine_slicing():
 
 def test_warning_affine_slicing():
     """Test warning if slicing into an affine."""
-    viewer = ViewerModel()
+    viewer = Viewer()
     np.random.seed(0)
     data = np.random.random((10, 10, 10))
     with pytest.warns(

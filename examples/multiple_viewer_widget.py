@@ -28,7 +28,7 @@ from qtpy.QtWidgets import (
 from superqt.utils import qthrottled
 
 import napari
-from napari.components.viewer_model import ViewerModel
+from napari.components.viewer_model import Viewer
 from napari.layers import Labels, Layer, Vectors
 from napari.qt import QtViewer
 from napari.utils.action_manager import action_manager
@@ -59,7 +59,7 @@ def get_property_names(layer: Layer):
 
 
 def center_cross_on_mouse(
-    viewer_model: napari.components.viewer_model.ViewerModel,
+    viewer_model: napari.components.viewer_model.Viewer,
 ):
     """move the cross to the mouse position"""
 
@@ -86,7 +86,7 @@ action_manager.register_action(
     name='napari:move_point',
     command=center_cross_on_mouse,
     description='Move dims point to mouse position',
-    keymapprovider=ViewerModel,
+    keymapprovider=Viewer,
 )
 
 action_manager.bind_shortcut('napari:move_point', 'C')
@@ -229,8 +229,8 @@ class MultipleViewerWidget(QSplitter):
     def __init__(self, viewer: napari.Viewer) -> None:
         super().__init__()
         self.viewer = viewer
-        self.viewer_model1 = ViewerModel(title='model1')
-        self.viewer_model2 = ViewerModel(title='model2')
+        self.viewer_model1 = Viewer(title='model1')
+        self.viewer_model2 = Viewer(title='model2')
         self._block = False
         self.qt_viewer1 = QtViewerWrap(viewer, self.viewer_model1)
         self.qt_viewer2 = QtViewerWrap(viewer, self.viewer_model2)

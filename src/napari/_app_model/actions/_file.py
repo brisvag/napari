@@ -4,7 +4,7 @@ from app_model.types import (
 )
 
 from napari._app_model.constants import MenuGroup, MenuId
-from napari.components import LayerList, ViewerModel
+from napari.components import LayerList, Viewer
 from napari.layers import Layer, Points, Shapes
 
 FILE_SUBMENUS = [
@@ -56,7 +56,7 @@ FILE_SUBMENUS = [
 ]
 
 
-def add_new_points(viewer: 'ViewerModel') -> None:
+def add_new_points(viewer: 'Viewer') -> None:
     if not viewer.layers.selection:
         ndim = max(viewer.dims.ndim, 2)
         viewer.add_points(  # type: ignore[attr-defined]
@@ -73,7 +73,7 @@ def add_new_points(viewer: 'ViewerModel') -> None:
         )
 
 
-def add_new_shapes(viewer: 'ViewerModel') -> None:
+def add_new_shapes(viewer: 'Viewer') -> None:
     if not viewer.layers.selection:
         ndim = max(viewer.dims.ndim, 2)
         viewer.add_shapes(  # type: ignore[attr-defined]
@@ -119,7 +119,7 @@ def get_layer_name(base_name: str, existing_names: set[str]) -> str:
     return f'{base_name} {index}'
 
 
-def new_labels(viewer: ViewerModel) -> None:
+def new_labels(viewer: Viewer) -> None:
     viewer._new_labels()
 
 
@@ -137,14 +137,14 @@ def _new_layer_from_active(
     return _create_single_layer(source_layer, layer_class, new_layer_name)
 
 
-def new_points(viewer: ViewerModel) -> None:
+def new_points(viewer: Viewer) -> None:
     if viewer.layers.selection.active is not None:
         viewer.add_layer(_new_layer_from_active(viewer.layers, Points))
     else:
         add_new_points(viewer)
 
 
-def new_shapes(viewer: ViewerModel) -> None:
+def new_shapes(viewer: Viewer) -> None:
     if viewer.layers.selection.active is not None:
         viewer.add_layer(_new_layer_from_active(viewer.layers, Shapes))
     else:

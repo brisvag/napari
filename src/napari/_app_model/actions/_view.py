@@ -8,7 +8,7 @@ from app_model.types import (
 
 from napari._app_model.actions._toggle_action import ViewerModelToggleAction
 from napari._app_model.constants import MenuGroup, MenuId
-from napari.components import ViewerModel
+from napari.components import Viewer
 from napari.settings import get_settings
 
 VIEW_SUBMENUS = [
@@ -121,19 +121,19 @@ def _get_current_tooltip_visibility() -> bool:
     return get_settings().appearance.layer_tooltip_visibility
 
 
-def _fit_to_view(viewer: ViewerModel) -> None:
+def _fit_to_view(viewer: Viewer) -> None:
     viewer.fit_to_view()
 
 
-def _zoom_in(viewer: ViewerModel) -> None:
+def _zoom_in(viewer: Viewer) -> None:
     viewer.scene.camera.zoom *= 1.5
 
 
-def _zoom_out(viewer: ViewerModel) -> None:
+def _zoom_out(viewer: Viewer) -> None:
     viewer.scene.camera.zoom /= 1.5
 
 
-def _toggle_canvas_ndim(viewer: ViewerModel) -> None:
+def _toggle_canvas_ndim(viewer: Viewer) -> None:
     """Toggle the current canvas between 3D and 2D."""
     if viewer.dims.ndisplay == 2:
         viewer.dims.ndisplay = 3
@@ -141,12 +141,12 @@ def _toggle_canvas_ndim(viewer: ViewerModel) -> None:
         viewer.dims.ndisplay = 2
 
 
-def _toggle_synced_camera(viewer: ViewerModel) -> None:
+def _toggle_synced_camera(viewer: Viewer) -> None:
     """Toggle the camera synced mode between synced and separate."""
     viewer.scene.camera.synced = not viewer.scene.camera.synced
 
 
-def _get_current_synced_camera(viewer: ViewerModel) -> bool:
+def _get_current_synced_camera(viewer: Viewer) -> bool:
     """Return the current synced state of the camera."""
     return viewer.scene.camera.synced
 

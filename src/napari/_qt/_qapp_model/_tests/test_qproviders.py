@@ -18,7 +18,7 @@ from napari._qt.qt_viewer import QtViewer
 from napari.components import LayerList
 from napari.layers import Image
 from napari.utils._proxies import PublicOnlyProxy
-from napari.viewer import Viewer
+from napari.components.viewer_model import Viewer
 
 
 def test_publicproxy_provide_viewer(capsys, make_napari_viewer):

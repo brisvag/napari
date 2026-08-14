@@ -38,7 +38,7 @@ from napari._qt.layer_controls.qt_surface_controls import QtSurfaceControls
 from napari._qt.layer_controls.qt_tracks_controls import QtTracksControls
 from napari._qt.layer_controls.qt_vectors_controls import QtVectorsControls
 from napari._qt.widgets.qt_color_swatch import QColorSwatchEdit
-from napari.components import ViewerModel
+from napari.components import Viewer
 from napari.layers import (
     Image,
     Labels,
@@ -684,7 +684,7 @@ def test_set_3d_display_with_points(qtbot, ndim, editable_after):
 
     See: https://github.com/napari/napari/pull/4184
     """
-    viewer = ViewerModel()
+    viewer = Viewer()
     container = QtLayerControlsContainer(viewer)
     qtbot.addWidget(container)
     layer = viewer.add_points(np.zeros((0, ndim)), ndim=ndim)
@@ -703,7 +703,7 @@ def test_set_3d_display_with_shapes(qtbot):
 
     See: https://github.com/napari/napari/pull/4184
     """
-    viewer = ViewerModel()
+    viewer = Viewer()
     container = QtLayerControlsContainer(viewer)
     qtbot.addWidget(container)
     layer = viewer.add_shapes(np.zeros((0, 2, 4)))
@@ -720,7 +720,7 @@ def test_set_3d_display_with_labels(qtbot):
     in 3D. Verify that the related mode buttons are disabled upon switching to
     3D rendering mode while the layer is still editable.
     """
-    viewer = ViewerModel()
+    viewer = Viewer()
     container = QtLayerControlsContainer(viewer)
     qtbot.addWidget(container)
     layer = viewer.add_labels(np.zeros((3, 4), dtype=int))
@@ -765,7 +765,7 @@ def test_set_3d_display_and_layer_visibility(qtbot, add_layer_with_data):
     3D regardless of the layer being visible or not. For all the layers the same
     applies for the transform mode button.
     """
-    viewer = ViewerModel()
+    viewer = Viewer()
     container = QtLayerControlsContainer(viewer)
     qtbot.addWidget(container)
     add_layer_method, data = add_layer_with_data

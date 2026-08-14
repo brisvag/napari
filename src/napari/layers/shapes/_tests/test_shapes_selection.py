@@ -1,6 +1,6 @@
 import numpy as np
 
-from napari.components import ViewerModel
+from napari.components import Viewer
 from napari.components.dims import Dims
 from napari.layers import Shapes
 
@@ -43,7 +43,7 @@ def test_selected_data_in_view():
 
 
 def test_preserve_selection_toggling_3d():
-    viewer = ViewerModel()
+    viewer = Viewer()
     # Create a shapes layer with a rectangle
     shapes = [np.array([[10, 10], [10, 20], [20, 20], [20, 10]])]
     layer = viewer.add_shapes(shapes)
@@ -60,7 +60,7 @@ def test_preserve_selection_toggling_3d():
 
 
 def test_preserve_selection_scrolling():
-    viewer = ViewerModel()
+    viewer = Viewer()
     # Create a shapes layer with rectangles on different slices
     shapes = [
         np.array([[0, 10, 10], [0, 10, 20], [0, 20, 20], [0, 20, 10]]),
@@ -80,7 +80,7 @@ def test_preserve_selection_scrolling():
 
 
 def test_preserve_selection_order_change():
-    viewer = ViewerModel()
+    viewer = Viewer()
     # Create a shapes layer
     shapes = [np.array([[0, 10, 10], [0, 10, 20], [0, 20, 20], [0, 20, 10]])]
     layer = viewer.add_shapes(shapes)
@@ -97,7 +97,7 @@ def test_preserve_selection_order_change():
 
 
 def test_hover_highlight_cleared_on_scrolling():
-    viewer = ViewerModel()
+    viewer = Viewer()
     # Add a dummy 3D image to set the dimensions properly
     viewer.add_image(np.zeros((5, 30, 30)))
     # Create a shapes layer with a rectangle only on slice 0
@@ -131,7 +131,7 @@ def test_interaction_box_tracks_current_slice_multiselect():
     it inside a batched update, before ``_view_indices`` reflected the new
     slice, leaving the previous slice's box hoverable as a phantom highlight.
     """
-    viewer = ViewerModel()
+    viewer = Viewer()
     viewer.add_image(np.zeros((3, 50, 50)))
 
     # shape 0 lives on slice 0 (~15, 15), shape 1 on slice 1 (~35, 35)

@@ -12,7 +12,7 @@ from superqt.utils import _qthreading
 
 from napari.utils.progress import progress
 from napari.utils.task_status import Status
-from napari.viewer import current_viewer
+from napari.components.viewer_model import current_viewer
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence

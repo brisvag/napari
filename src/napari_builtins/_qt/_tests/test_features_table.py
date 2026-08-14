@@ -18,7 +18,7 @@ from qtpy.QtWidgets import (
 )
 
 from napari import layers
-from napari.components import ViewerModel
+from napari.components import Viewer
 from napari_builtins._qt.features_table import FeaturesTable, PandasModel
 
 
@@ -92,7 +92,7 @@ def test_pandas_model_set_data_categorical(qtbot):
 
 
 def test_features_table(qtbot):
-    v = ViewerModel()
+    v = Viewer()
     w = FeaturesTable(v)
     qtbot.add_widget(w)
     proxy = w.table.model()
@@ -160,7 +160,7 @@ def test_features_table(qtbot):
 
 
 def test_features_table_selection_labels(qtbot):
-    v = ViewerModel()
+    v = Viewer()
     w = FeaturesTable(v)
     qtbot.add_widget(w)
 
@@ -176,7 +176,7 @@ def test_features_table_selection_labels(qtbot):
 
 
 def test_features_table_selection_shapes(qtbot):
-    v = ViewerModel()
+    v = Viewer()
     features = pd.DataFrame(
         {'shape_type': ['rectangle', 'ellipse'], 'value': [1, 2]}
     )
@@ -196,7 +196,7 @@ def test_features_table_selection_shapes(qtbot):
 
 
 def test_features_table_edit(qtbot):
-    v = ViewerModel()
+    v = Viewer()
     w = FeaturesTable(v)
     qtbot.add_widget(w)
     proxy = w.table.model()
@@ -222,7 +222,7 @@ def test_features_table_edit(qtbot):
 
 
 def test_features_table_save_csv(qtbot, tmp_path, monkeypatch):
-    v = ViewerModel()
+    v = Viewer()
     w = FeaturesTable(v)
     qtbot.add_widget(w)
 
@@ -240,7 +240,7 @@ def test_features_table_save_csv(qtbot, tmp_path, monkeypatch):
 
 
 def test_features_table_copy_paste(qtbot, qapp):
-    v = ViewerModel()
+    v = Viewer()
     w = FeaturesTable(v)
     qtbot.add_widget(w)
     proxy = w.table.model()
@@ -305,7 +305,7 @@ def test_features_table_copy_paste(qtbot, qapp):
 def test_features_tables_dtypes(
     dtype, val, rendered_val, editor_class, new_val, qtbot
 ):
-    v = ViewerModel()
+    v = Viewer()
     w = FeaturesTable(v)
     qtbot.add_widget(w)
     proxy = w.table.model()
@@ -352,7 +352,7 @@ def test_features_tables_dtypes(
 
 
 def test_features_table_change_active_layer(qtbot):
-    v = ViewerModel()
+    v = Viewer()
     w = FeaturesTable(v)
     qtbot.add_widget(w)
 
@@ -445,7 +445,7 @@ def test_features_table_multilayer_table_concat(qtbot):
     """
     Test concatenation of features from multiple layers in the features table.
     """
-    v = ViewerModel()
+    v = Viewer()
     w = FeaturesTable(v)
     qtbot.add_widget(w)
     layers_dict = _add_all_supported_layers(v)
@@ -479,7 +479,7 @@ def test_features_table_multilayer_layer_selection_change(qtbot):
     """
     Test layer selection changes in the features table.
     """
-    v = ViewerModel()
+    v = Viewer()
     w = FeaturesTable(v)
     qtbot.add_widget(w)
 
@@ -514,7 +514,7 @@ def test_features_table_multilayer_layer_selection_change(qtbot):
 
 
 def test_features_table_multilayer_table_selection(qtbot):
-    v = ViewerModel()
+    v = Viewer()
     w = FeaturesTable(v)
     qtbot.add_widget(w)
     proxy = w.table.model()
@@ -567,7 +567,7 @@ def test_features_table_multilayer_table_selection(qtbot):
 
 
 def test_features_table_multilayer_edit(qtbot):
-    v = ViewerModel()
+    v = Viewer()
     w = FeaturesTable(v)
     qtbot.add_widget(w)
     proxy = w.table.model()
@@ -604,7 +604,7 @@ def test_features_table_multilayer_edit(qtbot):
 
 
 def test_features_table_multilayer_save_csv(qtbot, tmp_path, monkeypatch):
-    v = ViewerModel()
+    v = Viewer()
     w = FeaturesTable(v)
     qtbot.add_widget(w)
 

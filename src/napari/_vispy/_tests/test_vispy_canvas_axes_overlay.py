@@ -3,12 +3,12 @@ from vispy.util.quaternion import Quaternion
 
 from napari._vispy.overlays.canvas_axes import VispyCanvasAxesOverlay
 from napari._vispy.utils.qt_font import FontInfo
-from napari.components import ViewerModel
+from napari.components import Viewer
 from napari.components.overlays import CanvasAxesOverlay
 
 
 def test_canvas_axes_dimensions_properly_detected():
-    viewer = ViewerModel()
+    viewer = Viewer()
     axes_model = CanvasAxesOverlay()
     axes_view = VispyCanvasAxesOverlay(
         viewer=viewer, overlay=axes_model, font_info=FontInfo()
@@ -41,7 +41,7 @@ def _assert_quat_equal(q1, q2):
 
 
 def test_angles():
-    viewer = ViewerModel()
+    viewer = Viewer()
     axes_model = CanvasAxesOverlay()
     axes_view = VispyCanvasAxesOverlay(
         viewer=viewer, overlay=axes_model, font_info=FontInfo()

@@ -6,7 +6,7 @@ from app_model import Action
 from app_model.types import ToggleRule
 from pydantic import PrivateAttr
 
-from napari.components import ViewerModel
+from napari.components import Viewer
 
 
 class ViewerModelToggleAction(Action):
@@ -51,14 +51,14 @@ class ViewerModelToggleAction(Action):
         )
         self._attribute_path_parts.extend(attribute_path.split('.'))
 
-    def get_current(self, viewer: ViewerModel) -> bool:
+    def get_current(self, viewer: Viewer) -> bool:
         """return the current value of the viewer attribute"""
         attr = viewer
         for part in self._attribute_path_parts:
             attr = getattr(attr, part)
         return attr  # type: ignore[return-value]
 
-    def toggle(self, viewer: ViewerModel) -> None:
+    def toggle(self, viewer: Viewer) -> None:
         """toggle the viewer attribute"""
         attr = viewer
         parts = self._attribute_path_parts

@@ -6,7 +6,7 @@ from napari._vispy.overlays.labels_brush_stroke import (
     VispyLabelsBrushStrokeOverlay,
 )
 from napari._vispy.utils.qt_font import FontInfo
-from napari.components import ViewerModel
+from napari.components import Viewer
 from napari.layers.labels._labels_key_bindings import reset_polygon
 from napari.utils._proxies import ReadOnlyWrapper
 from napari.utils.interactions import (
@@ -17,7 +17,7 @@ from napari.utils.interactions import (
 
 
 def _make_overlay():
-    viewer = ViewerModel()
+    viewer = Viewer()
     data = np.zeros((40, 40), dtype=np.int32)
     layer = viewer.add_labels(data)
     overlay = layer._overlays['brush_stroke']
