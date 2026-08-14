@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from napari._tests.utils import layer_test_data
-from napari.components.viewer_model import Viewer
+from napari.components.viewer import Viewer
 from napari.layers._source import Source
 
 img = np.random.rand(10, 10)

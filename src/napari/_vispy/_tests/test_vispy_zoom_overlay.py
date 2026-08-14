@@ -1,7 +1,7 @@
 from napari._vispy.overlays.zoom import VispyZoomOverlay
 from napari._vispy.utils.qt_font import FontInfo
 from napari.components.overlays import ZoomOverlay
-from napari.components.viewer_model import Viewer
+from napari.components.viewer import Viewer
 
 
 def test_zoom_overlay_initialization():

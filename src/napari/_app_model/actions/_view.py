@@ -6,7 +6,7 @@ from app_model.types import (
     ToggleRule,
 )
 
-from napari._app_model.actions._toggle_action import ViewerModelToggleAction
+from napari._app_model.actions._toggle_action import ViewerToggleAction
 from napari._app_model.constants import MenuGroup, MenuId
 from napari.components import Viewer
 from napari.settings import get_settings
@@ -240,7 +240,7 @@ VIEW_ACTIONS: list[Action] = [
 for menu_id, action_details in toggle_actions.items():
     for cmd, cmd_title, attribute_path in action_details:
         VIEW_ACTIONS.append(
-            ViewerModelToggleAction(
+            ViewerToggleAction(
                 id=cmd,
                 title=cmd_title,
                 attribute_path=attribute_path,

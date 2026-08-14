@@ -14,7 +14,7 @@ from napari.utils.notifications import notification_manager, show_warning
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from napari.components.viewer_model import Viewer
+    from napari.components.viewer import Viewer
 
 # Stores namespace associated with a script executed by drag and drop
 # or the Python file reader. It maps the script path to the
@@ -148,7 +148,7 @@ def execute_python_code(code: str, script_path: str | Path = '') -> None:
         Path to the script file.
         Used to store the script's namespace in the _SCRIPT_NAMESPACES.
     """
-    from napari.components.viewer_model import current_viewer
+    from napari.components.viewer import current_viewer
 
     with _patched_viewer_new(), _noop_napari_run():
         try:
@@ -188,7 +188,7 @@ def execute_python_code(code: str, script_path: str | Path = '') -> None:
 @contextmanager
 def _patched_viewer_new():
     """Context manager to patch the viewer's new method."""
-    from napari.components.viewer_model import Viewer, current_viewer
+    from napari.components.viewer import Viewer, current_viewer
 
     _saved_new = Viewer.__new__
     _saved_init = Viewer.__init__

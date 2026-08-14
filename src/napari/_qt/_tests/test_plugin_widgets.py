@@ -12,7 +12,6 @@ from napari._qt._qplugins._qnpe2 import _get_widget_viewer_param
 from napari._qt.qt_main_window import _instantiate_dock_widget
 from napari.components.viewer import Viewer
 from napari.utils._proxies import PublicOnlyProxy
-from napari.components.viewer_model import Viewer
 
 
 class ErrorWidget:

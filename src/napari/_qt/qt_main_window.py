@@ -101,7 +101,7 @@ if TYPE_CHECKING:
     from qtpy.QtGui import QHideEvent, QImage, QShowEvent
 
     from napari._qt.widgets.qt_viewer_tour import GuidedTour
-    from napari.components.viewer_model import Viewer
+    from napari.components.viewer import Viewer
 
 _sentinel = object()
 
@@ -698,7 +698,7 @@ class Window:
 
     Parameters
     ----------
-    viewer : napari.components.ViewerModel
+    viewer : napari.components.Viewer
         Contained viewer widget.
 
     Attributes
@@ -717,7 +717,7 @@ class Window:
 
     def __init__(
         self,
-        viewer: ViewerModel,
+        viewer: Viewer,
         *,
         show: bool = True,
         show_welcome_screen: bool = True,
@@ -1929,7 +1929,7 @@ class Window:
 
 def _instantiate_dock_widget(wdg_cls, viewer: Viewer):
     # if the signature is looking a for a napari viewer, pass it.
-    from napari.components.viewer_model import Viewer, Viewer
+    from napari.components.viewer import Viewer
 
     kwargs = {}
     try:
@@ -1945,9 +1945,9 @@ def _instantiate_dock_widget(wdg_cls, viewer: Viewer):
             if param.annotation in (
                 'napari.viewer.Viewer',
                 Viewer,
-                'napari.viewer.ViewerModel',
-                'napari.components.ViewerModel',
-                'napari.components.viewer_model.ViewerModel',
+                'napari.viewer.Viewer',
+                'napari.components.Viewer',
+                'napari.components.viewer.Viewer',
                 Viewer,
             ):
                 kwargs[param.name] = PublicOnlyProxy(viewer)

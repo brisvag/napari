@@ -120,7 +120,7 @@ class QtViewer(QSplitter):
 
     Parameters
     ----------
-    viewer : napari.components.ViewerModel
+    viewer : napari.components.Viewer
         Napari viewer containing the rendered scene, layers, and controls.
     show_welcome_screen : bool, optional
         Flag to show a welcome message when no layers are present in the
@@ -141,7 +141,7 @@ class QtViewer(QSplitter):
         Dimension sliders; Qt View for Dims model.
     show_welcome_screen : bool
         Boolean indicating whether to show the welcome screen.
-    viewer : napari.components.ViewerModel
+    viewer : napari.components.Viewer
         Napari viewer containing the rendered scene, layers, and controls.
     _key_map_handler : napari.utils.key_bindings.KeymapHandler
         KeymapHandler handling the calling functionality when keys are pressed that have a callback function mapped
@@ -1105,7 +1105,7 @@ class QtViewer(QSplitter):
     ) -> None:
         """Open files, potentially popping reader dialog for plugin selection.
 
-        Call ViewerModel.open and catch errors that could
+        Call Viewer.open and catch errors that could
         be fixed by user making a plugin choice.
 
         Parameters

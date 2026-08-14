@@ -9,7 +9,7 @@ Dims
     are being displayed, projected, sliced...
 LayerList
     List of layers currently present in the viewer.
-ViewerModel
+Viewer
     Data viewer displaying the currently rendered scene and
     layer-related controls.
 """
@@ -21,4 +21,4 @@ from napari.components.camera import Camera
 from napari.components.dims import Dims
 from napari.components.layerlist import LayerList
 
-__all__ = ['Camera', 'Dims', 'LayerList', 'ViewerModel']
+__all__ = ['Camera', 'Dims', 'LayerList', 'Viewer']

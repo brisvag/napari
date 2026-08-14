@@ -23,7 +23,7 @@ from napari import layers
 from napari._pydantic_compat import Extra, Field, PrivateAttr, validator
 from napari.components._layer_slicer import _LayerSlicer
 from napari.components.tooltip import Tooltip
-from napari.components.viewer_model import Viewer
+from napari.components.viewer import Viewer
 from napari.errors import (
     MultipleReaderError,
     NoAvailableReaderError,
@@ -98,7 +98,7 @@ def _current_theme() -> str:
     return get_settings().appearance.theme
 
 
-# KeymapProvider & MousemapProvider should eventually be moved off the ViewerModel
+# KeymapProvider & MousemapProvider should eventually be moved off the Viewer
 class MultiViewer(KeymapProvider, MousemapProvider, EventedModel):
     views: SelectableEventedList[Viewer] = Field(
         default_factory=SelectableEventedList[Viewer],
@@ -127,7 +127,7 @@ class MultiViewer(KeymapProvider, MousemapProvider, EventedModel):
         from napari._app_model.context import create_context
 
         # FIXME: just like the LayerList, this object should ideally be created
-        # elsewhere.  The app should know about the ViewerModel, but not vice versa.
+        # elsewhere.  The app should know about the Viewer, but not vice versa.
         self._ctx = create_context(self, max_depth=0)
         # allow extra attributes during model initialization, useful for mixins
         self.__config__.extra = Extra.allow
@@ -985,7 +985,7 @@ class MultiViewer(KeymapProvider, MousemapProvider, EventedModel):
         This assumes all files have the same extension, as other cases
         are not yet supported.
 
-        This function is called from ViewerModel.open, which raises any
+        This function is called from Viewer.open, which raises any
         errors returned. The QtViewer also calls this method but catches
         exceptions and opens a dialog for users to make a plugin choice.
 
@@ -1408,7 +1408,7 @@ def prune_kwargs(kwargs: Mapping[str, Any], layer_type: str) -> dict[str, Any]:
     Raises
     ------
     ValueError
-        If ``ViewerModel`` does not provide an ``add_<layer_type>`` method
+        If ``Viewer`` does not provide an ``add_<layer_type>`` method
         for the provided ``layer_type``.
 
     Examples

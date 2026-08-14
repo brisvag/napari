@@ -157,7 +157,7 @@ def handle_gui_reading(
 ):
     """Present reader dialog to choose reader and open paths based on result.
 
-    This function is called whenever ViewerModel._open_or_get_error returns
+    This function is called whenever Viewer._open_or_get_error returns
     an error from a GUI interaction e.g. dragging & dropping a file or using
     the File -> Open dialogs. It prepares remaining readers and error message
     for display, opens the reader dialog and based on user entry opens

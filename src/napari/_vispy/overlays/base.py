@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
     from napari._vispy.utils.qt_font import FontInfo
     from napari.components.overlays import CanvasOverlay, Overlay, SceneOverlay
-    from napari.components.viewer_model import Viewer
+    from napari.components.viewer import Viewer
     from napari.layers import Layer
     from napari.utils.events import Event
 

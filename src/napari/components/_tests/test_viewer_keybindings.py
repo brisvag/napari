@@ -16,7 +16,7 @@ from napari.components._viewer_key_bindings import (
     toggle_theme,
     toggle_unselected_visibility,
 )
-from napari.components.viewer_model import Viewer
+from napari.components.viewer import Viewer
 from napari.layers.points import Points
 from napari.settings import get_settings
 from napari.utils.theme import available_themes, get_system_theme

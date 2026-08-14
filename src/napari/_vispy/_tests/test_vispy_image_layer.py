@@ -11,7 +11,7 @@ from napari._vispy.utils.qt_font import FontInfo
 from napari._vispy.utils.visual import create_vispy_overlay
 from napari.components.dims import Dims
 from napari.components.overlays import BoundingBoxOverlay
-from napari.components.viewer_model import Viewer
+from napari.components.viewer import Viewer
 from napari.layers import Image
 
 

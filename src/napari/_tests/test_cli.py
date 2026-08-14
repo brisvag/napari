@@ -46,7 +46,7 @@ def test_cli_parses_unknowns(mock_run, monkeypatch, make_napari_viewer):
     # testing all the variants of literal_evals
     with mock.patch('napari.__main__.Viewer', return_value=mocked_viewer):
         monkeypatch.setattr(
-            napari.components.viewer.ViewerModel, 'open', assert_kwargs
+            napari.components.viewer.Viewer, 'open', assert_kwargs
         )
         with monkeypatch.context() as m:
             m.setattr(

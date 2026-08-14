@@ -42,7 +42,7 @@ class StatusChecker(QThread):
         the status checker thread.
         After _terminate is set to True, no more status updates are sent.
         Default: False.
-    viewer_ref : weakref.ref[napari.viewer.ViewerModel]
+    viewer_ref : weakref.ref[napari.viewer.Viewer]
         A weak reference to the viewer which is providing status updates.
         We keep a weak reference to the viewer so the status checker thread
         will not prevent the viewer from being garbage collected.
@@ -126,7 +126,7 @@ class StatusChecker(QThread):
             res = viewer._calc_status_from_cursor()
         except Exception as e:  # pragma: no cover # noqa: BLE001
             # Our codebase is not threadsafe. It is possible that an
-            # ViewerModel or Layer state is changed while we are trying to
+            # Viewer or Layer state is changed while we are trying to
             # calculate the status, which may cause an exception.
             # All exceptions are caught and handled to keep updates
             # from crashing the thread. The exception is logged

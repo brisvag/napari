@@ -67,14 +67,14 @@ class QtLayerControlsContainer(QStackedWidget):
 
     Parameters
     ----------
-    viewer : napari.components.ViewerModel
+    viewer : napari.components.Viewer
         Napari viewer containing the rendered scene, layers, and controls.
 
     Attributes
     ----------
     empty_widget : qtpy.QtWidgets.QFrame
         Empty placeholder frame for when no layer is selected.
-    viewer : napari.components.ViewerModel
+    viewer : napari.components.Viewer
         Napari viewer containing the rendered scene, layers, and controls.
     widgets : dict
         Dictionary of key value pairs matching layer with its widget controls.

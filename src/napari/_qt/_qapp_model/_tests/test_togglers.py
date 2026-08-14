@@ -1,7 +1,7 @@
 import pytest
 
 from napari._app_model._app import get_app_model
-from napari._app_model.actions._toggle_action import ViewerModelToggleAction
+from napari._app_model.actions._toggle_action import ViewerToggleAction
 from napari._qt._qapp_model.qactions._toggle_action import (
     DockWidgetToggleAction,
 )
@@ -12,7 +12,7 @@ from napari.components import Viewer
 @pytest.mark.usefixtures('mock_app_model')
 def test_viewer_toggler():
     viewer = Viewer()
-    action = ViewerModelToggleAction(
+    action = ViewerToggleAction(
         id='some.command.id',
         title='Toggle Axis Visibility',
         attribute_path='axes.visible',

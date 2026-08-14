@@ -7,8 +7,8 @@ from napari.components import Viewer
 from napari.components.overlays import ScaleBarOverlay
 
 
-def test_scale_bar_instantiation(viewer_model: Viewer):
-    img = viewer_model.add_image(data=np.zeros((10, 10)), name='test')
+def test_scale_bar_instantiation(viewer: Viewer):
+    img = viewer.add_image(data=np.zeros((10, 10)), name='test')
     model = ScaleBarOverlay()
     font_info = FontInfo()
     vispy_scale_bar = VispyScaleBarOverlay(
@@ -25,7 +25,7 @@ def test_scale_bar_instantiation(viewer_model: Viewer):
 
 
 def test_scale_bar_inconsistent_units_default_to_pixel(
-    viewer_model: Viewer,
+    viewer: Viewer,
 ):
     img1 = viewer.add_image(data=np.zeros((10, 10)), name='test1')
     _img2 = viewer.add_image(

@@ -31,7 +31,6 @@ from napari.errors.reader_errors import MultipleReaderError
 from napari.plugins import menu_item_template
 from napari.plugins._npe2 import _when_group_order, get_widget_contribution
 from napari.utils.events import Event
-from napari.components.viewer_model import Viewer, Viewer
 
 if TYPE_CHECKING:
     from npe2.manifest import PluginManifest
@@ -150,9 +149,9 @@ def _get_widget_viewer_param(
                 if param.name == 'napari_viewer' or param.annotation in (
                     'napari.viewer.Viewer',
                     Viewer,
-                    'napari.viewer.ViewerModel',
-                    'napari.components.ViewerModel',
-                    'napari.components.viewer_model.ViewerModel',
+                    'napari.viewer.Viewer',
+                    'napari.components.Viewer',
+                    'napari.components.viewer.Viewer',
                     Viewer,
                 ):
                     widget_param = param.name

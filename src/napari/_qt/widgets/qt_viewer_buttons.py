@@ -43,7 +43,7 @@ if TYPE_CHECKING:
     from enum import Enum, EnumMeta
     from typing import Any
 
-    from napari.components.viewer_model import Viewer
+    from napari.components.viewer import Viewer
 
 
 class QtLayerButtons(QFrame):
@@ -51,7 +51,7 @@ class QtLayerButtons(QFrame):
 
     Parameters
     ----------
-    viewer : napari.components.ViewerModel
+    viewer : napari.components.Viewer
         Napari viewer containing the rendered scene, layers, and controls.
 
     Attributes
@@ -64,7 +64,7 @@ class QtLayerButtons(QFrame):
         Button to add new Points layer.
     newShapesButton : QtViewerPushButton
         Button to add new Shapes layer.
-    viewer : napari.components.ViewerModel
+    viewer : napari.components.Viewer
         Napari viewer containing the rendered scene, layers, and controls.
     """
 
@@ -237,7 +237,7 @@ class QtViewerButtons(QFrame):
 
     Parameters
     ----------
-    viewer : napari.components.ViewerModel
+    viewer : napari.components.Viewer
         Napari viewer containing the rendered scene, layers, and controls.
 
     Attributes
@@ -254,7 +254,7 @@ class QtViewerButtons(QFrame):
         Button to toggle grid view mode of layers on and off.
     ndisplayButton : QtViewerPushButton
         Button to toggle number of displayed dimensions.
-    viewer : napari.components.ViewerModel
+    viewer : napari.components.Viewer
         Napari viewer containing the rendered scene, layers, and controls.
     """
 

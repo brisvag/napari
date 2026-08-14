@@ -134,7 +134,7 @@ def _validate_paths_exist(paths: list[PathLike]) -> None:
             raise FileNotFoundError(f'Path {p_str!r} does not exist.')
 
 
-# KeymapProvider & MousemapProvider should eventually be moved off the ViewerModel
+# KeymapProvider & MousemapProvider should eventually be moved off the Viewer
 class Viewer(KeymapProvider, MousemapProviderPydantic, EventedModel):
     """Viewer containing the rendered scene, layers, and controlling elements
     including dimension sliders, and control bars for color limits.
@@ -1402,7 +1402,7 @@ class Viewer(KeymapProvider, MousemapProviderPydantic, EventedModel):
         This assumes all files have the same extension, as other cases
         are not yet supported.
 
-        This function is called from ViewerModel.open, which raises any
+        This function is called from Viewer.open, which raises any
         errors returned. The QtViewer also calls this method but catches
         exceptions and opens a dialog for users to make a plugin choice.
 
@@ -1781,7 +1781,7 @@ def prune_kwargs(kwargs: Mapping[str, Any], layer_type: str) -> dict[str, Any]:
     Raises
     ------
     ValueError
-        If ``ViewerModel`` does not provide an ``add_<layer_type>`` method
+        If ``Viewer`` does not provide an ``add_<layer_type>`` method
         for the provided ``layer_type``.
 
     Examples

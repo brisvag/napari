@@ -745,7 +745,7 @@ class FeaturesTable(QWidget):
 
     def __init__(
         self,
-        viewer: napari.viewer.ViewerModel,
+        viewer: napari.viewer.Viewer,
     ) -> None:
         super().__init__()
         self._selected_layers = []

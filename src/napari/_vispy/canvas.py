@@ -132,11 +132,11 @@ class NapariSceneCanvas(SceneCanvas_):
 
 class VispyCanvas:
     """Class for our QtViewer class to interact with Vispy SceneCanvas. Also
-    connects Vispy SceneCanvas events to the napari ViewerModel and vice versa.
+    connects Vispy SceneCanvas events to the napari Viewer and vice versa.
 
     Parameters
     ----------
-    viewer : napari.components.ViewerModel
+    viewer : napari.components.Viewer
         Napari viewer containing the rendered scene, layers, and controls.
 
     Attributes
@@ -145,7 +145,7 @@ class VispyCanvas:
         A mapping of the napari layers that have been added to the viewer and their corresponding vispy counterparts.
     max_texture_sizes : Tuple[int, int]
         The max textures sizes as a (2d, 3d) tuple.
-    viewer : napari.components.ViewerModel
+    viewer : napari.components.Viewer
         Napari viewer containing the rendered scene, layers, and controls.
     view : vispy.scene.widgets.viewbox.ViewBox
         Rectangular widget in which a subscene is rendered.

@@ -11,13 +11,12 @@ from napari._qt.widgets.qt_viewer_buttons import (
     QtLayerButtons,
     QtViewerButtons,
 )
-from napari.components.viewer_model import Viewer
+from napari.components.viewer import Viewer
 from napari.utils.camera_orientations import (
     DepthAxisOrientation,
     HorizontalAxisOrientation,
     VerticalAxisOrientation,
 )
-from napari.components.viewer_model import Viewer
 
 
 @pytest.fixture

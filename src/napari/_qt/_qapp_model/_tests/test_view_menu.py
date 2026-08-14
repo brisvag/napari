@@ -17,7 +17,7 @@ from napari._app_model.actions._view import (
 )
 from napari._app_model.constants import MenuId
 from napari._tests.utils import skip_local_focus, skip_local_popups
-from napari.components.viewer_model import Viewer
+from napari.components.viewer import Viewer
 
 
 def check_windows_style(viewer):

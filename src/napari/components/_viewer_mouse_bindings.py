@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 if TYPE_CHECKING:
-    from napari.components.viewer_model import Viewer
+    from napari.components.viewer import Viewer
 
 # This is the minimum size of the zoom box (in pixels) that will
 # trigger a zoom when the user drags the mouse while holding Alt.

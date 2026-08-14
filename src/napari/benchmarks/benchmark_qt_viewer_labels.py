@@ -14,7 +14,7 @@ from vispy.app import MouseEvent
 
 import napari
 import napari.layers
-from napari.components.viewer_model import Viewer
+from napari.components.viewer import Viewer
 from napari.qt import QtViewer
 from napari.utils.colormaps import DirectLabelColormap
 

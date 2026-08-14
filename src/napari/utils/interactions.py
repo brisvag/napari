@@ -37,7 +37,7 @@ def mouse_wheel_callbacks(obj, event):
 
     Parameters
     ---------
-    obj : ViewerModel or Layer
+    obj : Viewer or Layer
         Layer or Viewer object to run callbacks on
     event : Event
         Mouse event
@@ -70,7 +70,7 @@ def mouse_double_click_callbacks(obj, event) -> None:
 
     Parameters
     ----------
-    obj : ViewerModel or Layer
+    obj : Viewer or Layer
         Layer or Viewer object to run callbacks on
     event : Event
         Mouse event
@@ -111,7 +111,7 @@ def mouse_press_callbacks(obj, event):
 
     Parameters
     ----------
-    obj : ViewerModel or Layer
+    obj : Viewer or Layer
         Layer or Viewer object to run callbacks on
     event : Event
         Mouse event
@@ -155,7 +155,7 @@ def mouse_move_callbacks(obj, event: 'NapariMouseEvent'):
 
     Parameters
     ----------
-    obj : ViewerModel or Layer
+    obj : Viewer or Layer
         Layer or Viewer object to run callbacks on
     event : NapariMouseEvent
         Mouse event
@@ -201,7 +201,7 @@ def mouse_release_callbacks(obj, event):
 
     Parameters
     ----------
-    obj : ViewerModel or Layer
+    obj : Viewer or Layer
         Layer or Viewer object to run callbacks on
     event : Event
         Mouse event

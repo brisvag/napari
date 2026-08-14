@@ -9,7 +9,7 @@ from pydantic import PrivateAttr
 from napari.components import Viewer
 
 
-class ViewerModelToggleAction(Action):
+class ViewerToggleAction(Action):
     """Action subclass that toggles a boolean viewer (sub)attribute on trigger.
 
     Parameters
@@ -25,7 +25,7 @@ class ViewerModelToggleAction(Action):
 
     Examples
     --------
-    >>> action = ViewerModelToggleAction(
+    >>> action = ViewerToggleAction(
     ...     id='some.command.id',
     ...     title='Toggle Axis Visibility',
     ...     attribute_path='axes.visible',
