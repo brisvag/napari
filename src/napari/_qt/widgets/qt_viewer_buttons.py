@@ -43,7 +43,7 @@ if TYPE_CHECKING:
     from enum import Enum, EnumMeta
     from typing import Any
 
-    from napari.components.viewer import Viewer
+    from napari.components.viewer_model import Viewer
 
 
 class QtLayerButtons(QFrame):

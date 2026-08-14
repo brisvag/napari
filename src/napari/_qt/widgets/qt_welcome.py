@@ -27,7 +27,7 @@ from napari.utils.tips import (
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from napari.components.viewer import Viewer
+    from napari.components.viewer_model import Viewer
 
 
 WELCOME_SHORTCUTS = (

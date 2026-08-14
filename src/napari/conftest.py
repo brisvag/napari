@@ -302,7 +302,7 @@ def tmp_plugin(npe2pm_: TestPluginManager):
 
 
 @pytest.fixture
-def viewer() -> Viewer:
+def viewer_model() -> Viewer:
     from napari.components import Viewer
 
     return Viewer()
@@ -310,7 +310,7 @@ def viewer() -> Viewer:
 
 @pytest.fixture
 def qt_viewer_(
-    qtbot: QtBot, viewer: Viewer, monkeypatch: pytest.MonkeyPatch
+    qtbot: QtBot, viewer_model: Viewer, monkeypatch: pytest.MonkeyPatch
 ) -> QtViewer:
     from napari._qt.qt_viewer import QtViewer
 

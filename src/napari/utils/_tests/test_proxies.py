@@ -4,7 +4,7 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 
-from napari.components.viewer import Viewer
+from napari.components.viewer_model import Viewer
 from napari.utils._proxies import PublicOnlyProxy, ReadOnlyWrapper
 from napari.utils.events.containers._set import EventedSet
 

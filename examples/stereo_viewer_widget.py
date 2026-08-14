@@ -29,7 +29,7 @@ from qtpy.QtWidgets import (
 
 import napari
 from napari.components.camera import Camera
-from napari.components.viewer import Viewer
+from napari.components.viewer_model import Viewer
 from napari.layers import Layer
 from napari.qt import QtViewer, get_stylesheet
 from napari.settings import get_settings

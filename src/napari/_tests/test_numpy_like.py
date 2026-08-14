@@ -4,7 +4,7 @@ import xarray as xr
 import zarr
 from numpy.testing import assert_array_equal
 
-from napari.components.viewer import Viewer
+from napari.components.viewer_model import Viewer
 
 
 def test_dask_2D():

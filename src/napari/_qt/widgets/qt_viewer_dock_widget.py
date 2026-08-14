@@ -186,7 +186,7 @@ class QtViewerDockWidget(QDockWidget):
 
     def destroyOnClose(self):
         """Destroys dock plugin dock widget when 'x' is clicked."""
-        from napari.components.viewer import Viewer
+        from napari.components.viewer_model import Viewer
 
         viewer = self._ref_qt_viewer().viewer
         if isinstance(viewer, Viewer):

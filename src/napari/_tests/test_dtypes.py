@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from napari.components.viewer import Viewer
+from napari.components.viewer_model import Viewer
 
 dtypes = [
     np.dtype(bool),

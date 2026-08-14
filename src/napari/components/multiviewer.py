@@ -23,7 +23,7 @@ from napari import layers
 from napari._pydantic_compat import Extra, Field, PrivateAttr, validator
 from napari.components._layer_slicer import _LayerSlicer
 from napari.components.tooltip import Tooltip
-from napari.components.viewer import Viewer
+from napari.components.viewer_model import Viewer
 from napari.errors import (
     MultipleReaderError,
     NoAvailableReaderError,

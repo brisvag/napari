@@ -6,6 +6,7 @@ from npe2.manifest.contributions import SampleDataURI
 
 from napari.components.viewer import Viewer
 from napari.layers._source import Source
+from napari.components.viewer_model import Viewer
 
 
 @pytest.fixture(scope='session')

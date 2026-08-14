@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from app_model.types import KeyCode, KeyMod
 
-from napari.components.viewer import Viewer
+from napari.components.viewer_model import Viewer
 from napari.utils.action_manager import action_manager
 from napari.utils.notifications import show_info, show_warning
 from napari.utils.theme import available_themes, get_system_theme
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Generator
 
     from napari._qt.qt_viewer import QtViewer
-    from napari.components.viewer import Viewer
+    from napari.components.viewer_model import Viewer
 
 
 def register_viewer_action(

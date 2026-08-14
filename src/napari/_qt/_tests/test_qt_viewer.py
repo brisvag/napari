@@ -27,7 +27,7 @@ from napari._tests.utils import (
     skip_on_win_ci,
 )
 from napari._vispy._tests.utils import vispy_image_scene_size
-from napari.components.viewer import Viewer
+from napari.components.viewer_model import Viewer
 from napari.layers import Labels, Layer, Points
 from napari.settings import get_settings
 from napari.utils.colormaps import DirectLabelColormap, label_colormap
@@ -68,7 +68,7 @@ def qt_viewer(
 @pytest.mark.parametrize(('layer_class', 'data', 'ndim'), layer_test_data)
 def test_add_layer(
     qt_viewer: QtViewer,
-    viewer: Viewer,
+    viewer_model: Viewer,
     layer_class: type[Layer],
     data: ArrayLike,
     ndim: int,
@@ -79,7 +79,7 @@ def test_add_layer(
     check_viewer_functioning(viewer, qt_viewer, data, ndim)
 
 
-def test_new_labels(qt_viewer: QtViewer, viewer: Viewer) -> None:
+def test_new_labels(qt_viewer: QtViewer, viewer_model: Viewer) -> None:
     """Test adding new labels layer to empty viewer."""
     viewer._new_labels()
     assert np.max(viewer.layers[0].data) == 0
@@ -91,7 +91,9 @@ def test_new_labels(qt_viewer: QtViewer, viewer: Viewer) -> None:
     npt.assert_array_equal(qt_viewer.dims._displayed_sliders, False)
 
 
-def test_new_labels_to_image(qt_viewer: QtViewer, viewer: Viewer) -> None:
+def test_new_labels_to_image(
+    qt_viewer: QtViewer, viewer_model: Viewer
+) -> None:
     """Test adding new labels layer to viewer with image."""
     data = np.random.default_rng(0).random((10, 15))
     viewer.add_image(data)
@@ -105,7 +107,7 @@ def test_new_labels_to_image(qt_viewer: QtViewer, viewer: Viewer) -> None:
     npt.assert_array_equal(qt_viewer.dims._displayed_sliders, False)
 
 
-def test_new_points(qt_viewer: QtViewer, viewer: Viewer) -> None:
+def test_new_points(qt_viewer: QtViewer, viewer_model: Viewer) -> None:
     """Test adding a new points layer to empty viewer."""
     viewer.add_points()
     assert len(viewer.layers[0].data) == 0
@@ -117,7 +119,9 @@ def test_new_points(qt_viewer: QtViewer, viewer: Viewer) -> None:
     npt.assert_array_equal(qt_viewer.dims._displayed_sliders, False)
 
 
-def test_new_points_to_image(qt_viewer: QtViewer, viewer: Viewer) -> None:
+def test_new_points_to_image(
+    qt_viewer: QtViewer, viewer_model: Viewer
+) -> None:
     """Test adding new points layer to viewer with image."""
     data = np.random.default_rng(0).random((10, 15))
     viewer.add_image(data)
@@ -131,7 +135,9 @@ def test_new_points_to_image(qt_viewer: QtViewer, viewer: Viewer) -> None:
     npt.assert_array_equal(qt_viewer.dims._displayed_sliders, False)
 
 
-def test_new_shapes_empty_viewer(qt_viewer: QtViewer, viewer: Viewer) -> None:
+def test_new_shapes_empty_viewer(
+    qt_viewer: QtViewer, viewer_model: Viewer
+) -> None:
     """Test adding new shapes layer to empty viewer."""
     viewer.add_shapes()
     assert len(viewer.layers[0].data) == 0
@@ -143,7 +149,9 @@ def test_new_shapes_empty_viewer(qt_viewer: QtViewer, viewer: Viewer) -> None:
     npt.assert_array_equal(qt_viewer.dims._displayed_sliders, False)
 
 
-def test_new_shapes_to_image(qt_viewer: QtViewer, viewer: Viewer) -> None:
+def test_new_shapes_to_image(
+    qt_viewer: QtViewer, viewer_model: Viewer
+) -> None:
     """Test adding new shapes layer to viewer with image."""
     data = np.random.default_rng(0).random((10, 15))
     viewer.add_image(data)
@@ -158,7 +166,7 @@ def test_new_shapes_to_image(qt_viewer: QtViewer, viewer: Viewer) -> None:
 
 
 def test_z_order_adding_removing_images(
-    viewer: Viewer, qt_viewer: QtViewer
+    viewer_model: Viewer, qt_viewer: QtViewer
 ) -> None:
     """Test z order is correct after adding/ removing images."""
     data = np.ones((10, 10))
@@ -194,7 +202,7 @@ def test_z_order_adding_removing_images(
 @pytest.mark.show_qt_viewer
 def test_export_figure(
     qt_viewer: QtViewer,
-    viewer: Viewer,
+    viewer_model: Viewer,
     tmp_path: Path,
     qtbot: QtBot,
 ) -> None:
@@ -228,7 +236,7 @@ def test_export_figure(
 @pytest.mark.show_qt_viewer
 def test_export_figure_3d(
     qt_viewer: QtViewer,
-    viewer: Viewer,
+    viewer_model: Viewer,
     tmp_path: Path,
     qtbot: QtBot,
 ) -> None:
@@ -267,7 +275,7 @@ def test_export_figure_3d(
 @pytest.mark.show_qt_viewer
 def test_export_rois(
     qt_viewer: QtViewer,
-    viewer: Viewer,
+    viewer_model: Viewer,
     tmp_path: Path,
     qtbot: QtBot,
 ) -> None:
@@ -346,7 +354,9 @@ def test_export_rois(
 
 
 @pytest.mark.show_qt_viewer
-def test_export_rois_3d_fail(qt_viewer: QtViewer, viewer: Viewer) -> None:
+def test_export_rois_3d_fail(
+    qt_viewer: QtViewer, viewer_model: Viewer
+) -> None:
     # create 3d ROI for testing
     roi_3d = [
         np.array([[0, 0, 0], [0, 20, 0], [0, 20, 20], [0, 0, 20]]),
@@ -375,7 +385,7 @@ def test_export_rois_3d_fail(qt_viewer: QtViewer, viewer: Viewer) -> None:
 @pytest.mark.skip('new approach')
 @pytest.mark.show_qt_viewer
 def test_screenshot_dialog(
-    viewer: Viewer, qt_viewer: QtViewer, tmp_path: Path
+    viewer_model: Viewer, qt_viewer: QtViewer, tmp_path: Path
 ) -> None:
     """Test save screenshot functionality."""
     rng = np.random.default_rng(0)
@@ -419,7 +429,9 @@ def test_screenshot_dialog(
 
 
 @pytest.mark.key_bindings
-def test_active_keybindings(qt_viewer: QtViewer, viewer: Viewer) -> None:
+def test_active_keybindings(
+    qt_viewer: QtViewer, viewer_model: Viewer
+) -> None:
     """Test instantiating viewer."""
     # Check only keybinding is Viewer
     assert len(qt_viewer._key_map_handler.keymap_providers) == 1
@@ -445,7 +457,9 @@ def test_active_keybindings(qt_viewer: QtViewer, viewer: Viewer) -> None:
     assert qt_viewer._key_map_handler.keymap_providers[0] == layer_image
 
 
-def test_process_mouse_event(qt_viewer: QtViewer, viewer: Viewer) -> None:
+def test_process_mouse_event(
+    qt_viewer: QtViewer, viewer_model: Viewer
+) -> None:
     """Test that the correct properties are added to the
     MouseEvent by _process_mouse_events.
     """
@@ -476,7 +490,7 @@ def test_process_mouse_event(qt_viewer: QtViewer, viewer: Viewer) -> None:
 
 
 def test_process_mouse_event_2d_layer_3d_viewer(
-    qt_viewer: QtViewer, viewer: Viewer
+    qt_viewer: QtViewer, viewer_model: Viewer
 ) -> None:
     """Test that _process_mouse_events can handle 2d layers in 3D.
 
@@ -510,16 +524,16 @@ def test_process_mouse_event_2d_layer_3d_viewer(
 @pytest.mark.usefixtures(
     'qt_viewer'
 )  # need qt_viewer to trigger the vispy code
-def test_remove_points(viewer: Viewer) -> None:
-    viewer.add_points([(1, 2), (2, 3)])
-    del viewer.layers[0]
-    viewer.add_points([(1, 2), (2, 3)])
+def test_remove_points(viewer_model: Viewer) -> None:
+    viewer_model.add_points([(1, 2), (2, 3)])
+    del viewer_model.layers[0]
+    viewer_model.add_points([(1, 2), (2, 3)])
 
 
 @pytest.mark.usefixtures(
     'qt_viewer'
 )  # need qt_viewer to trigger the vispy code
-def test_remove_image(viewer: Viewer) -> None:
+def test_remove_image(viewer_model: Viewer) -> None:
     rng = np.random.default_rng(0)
     viewer.add_image(rng.random((10, 10)))
     del viewer.layers[0]
@@ -529,7 +543,7 @@ def test_remove_image(viewer: Viewer) -> None:
 @pytest.mark.usefixtures(
     'qt_viewer'
 )  # need qt_viewer to trigger the vispy code
-def test_remove_labels(viewer: Viewer) -> None:
+def test_remove_labels(viewer_model: Viewer) -> None:
     rng = np.random.default_rng(0)
     viewer.add_labels(rng.integers(0, 10, size=(10, 10), dtype=np.int8))
     del viewer.layers[0]
@@ -541,7 +555,7 @@ def test_remove_labels(viewer: Viewer) -> None:
 )
 @pytest.mark.parametrize('multiscale', [False, True])
 def test_mixed_2d_and_3d_layers(
-    viewer: Viewer, qt_viewer: QtViewer, multiscale: bool
+    viewer_model: Viewer, qt_viewer: QtViewer, multiscale: bool
 ) -> None:
     """Test bug in setting corner_pixels from qt_viewer.on_draw"""
     img = np.ones((512, 256))
@@ -579,7 +593,7 @@ def test_mixed_2d_and_3d_layers(
 @pytest.mark.usefixtures(
     'qt_viewer'
 )  # need qt_viewer to trigger the vispy code
-def test_remove_add_image_3D(viewer: Viewer) -> None:
+def test_remove_add_image_3D(viewer_model: Viewer) -> None:
     """
     Test that adding, removing and readding an image layer in 3D does not cause issues
     due to the vispy node change. See https://github.com/napari/napari/pull/3670
@@ -616,7 +630,9 @@ def test_qt_viewer_multscale_image_out_of_view(viewer):
     viewer.add_image([np.eye(1024), np.eye(512), np.eye(256)])
 
 
-def test_insert_layer_ordering(viewer: Viewer, qt_viewer: QtViewer) -> None:
+def test_insert_layer_ordering(
+    viewer_model: Viewer, qt_viewer: QtViewer
+) -> None:
     """make sure layer ordering is correct in vispy when inserting layers"""
     pl1 = Points()
     pl2 = Points()
@@ -630,9 +646,9 @@ def test_insert_layer_ordering(viewer: Viewer, qt_viewer: QtViewer) -> None:
     assert pl2_vispy.order == 0
 
 
-def test_create_non_empty_viewer(qtbot: QtBot) -> None:
-    viewer = Viewer()
-    viewer.add_points([(1, 2), (2, 3)])
+def test_create_non_empty_viewer_model(qtbot: QtBot) -> None:
+    viewer_model = Viewer()
+    viewer_model.add_points([(1, 2), (2, 3)])
 
     viewer = QtViewer(viewer=viewer)
 
@@ -657,7 +673,7 @@ def test_qt_viewer_canvas_is_nested_in_main_widget(
 
 
 def test_qt_viewer_canvas_hover_state_comes_from_canvas(
-    qt_viewer: QtViewer, viewer: Viewer
+    qt_viewer: QtViewer, viewer_model: Viewer
 ) -> None:
     viewer.mouse_over_canvas = False
     viewer.status = ''
@@ -679,7 +695,7 @@ def test_qt_viewer_canvas_hover_state_comes_from_canvas(
 
 
 def test_qt_viewer_accepts_custom_welcome_tips(
-    qtbot: QtBot, viewer: Viewer
+    qtbot: QtBot, viewer_model: Viewer
 ) -> None:
     viewer = QtViewer(viewer=viewer, tips=('first tip', 'second tip'))
     qtbot.addWidget(
@@ -702,9 +718,9 @@ def test_create_non_empty_viewer_initializes_world_units(
     from pint import get_application_registry
 
     reg = get_application_registry()
-    viewer = Viewer()
-    image_um = viewer.add_image(np.zeros((10, 10)), units=('um', 'um'))
-    viewer.layers.units = ('nm', 'nm')
+    viewer_model = Viewer()
+    image_um = viewer_model.add_image(np.zeros((10, 10)), units=('um', 'um'))
+    viewer_model.layers.units = ('nm', 'nm')
 
     viewer = QtViewer(viewer=viewer)
     qtbot.addWidget(
@@ -848,9 +864,9 @@ def test_label_colors_matching_widget_direct(
         )
 
 
-def test_axis_labels(viewer: Viewer, qt_viewer: QtViewer) -> None:
-    viewer.dims.ndisplay = 3
-    viewer.axes.visible = True
+def test_axis_labels(viewer_model: Viewer, qt_viewer: QtViewer) -> None:
+    viewer_model.dims.ndisplay = 3
+    viewer_model.axes.visible = True
 
     layer = viewer.add_image(np.zeros((2, 2, 2)), scale=(1, 2, 4))
 
@@ -966,7 +982,7 @@ def test_background_color(
 
 @pytest.mark.show_qt_viewer
 def test_rendering_interpolation(
-    qtbot: QtBot, qt_viewer: QtViewer, viewer: Viewer
+    qtbot: QtBot, qt_viewer: QtViewer, viewer_model: Viewer
 ) -> None:
     data = np.zeros((20, 20, 20), dtype=np.uint8)
     data[1:-1, 1:-1, 1:-1] = 5
@@ -986,7 +1002,7 @@ def test_rendering_interpolation(
 @pytest.mark.parametrize('mode', ['direct', 'random'])
 def test_selection_collision(
     qt_viewer: QtViewer,
-    viewer: Viewer,
+    viewer_model: Viewer,
     mode: typing.Literal['direct', 'random'],
 ) -> None:
     data = np.zeros((10, 10), dtype=np.uint8)
@@ -1022,7 +1038,9 @@ def test_selection_collision(
 
 
 @pytest.mark.show_qt_viewer
-def test_all_supported_dtypes(qt_viewer: QtViewer, viewer: Viewer) -> None:
+def test_all_supported_dtypes(
+    qt_viewer: QtViewer, viewer_model: Viewer
+) -> None:
     data = np.zeros((10, 10), dtype=np.uint8)
     layer_ = viewer.add_labels(data, opacity=1)
 
@@ -1071,7 +1089,9 @@ def test_all_supported_dtypes(qt_viewer: QtViewer, viewer: Viewer) -> None:
 
 @pytest.mark.slow
 @pytest.mark.show_qt_viewer
-def test_more_than_uint16_colors(qt_viewer: QtViewer, viewer: Viewer) -> None:
+def test_more_than_uint16_colors(
+    qt_viewer: QtViewer, viewer_model: Viewer
+) -> None:
     pytest.importorskip('numba')
     # this test is slow (10s locally)
     data = np.zeros((10, 10), dtype=np.uint32)
@@ -1103,8 +1123,10 @@ def test_more_than_uint16_colors(qt_viewer: QtViewer, viewer: Viewer) -> None:
 
 @skip_local_popups
 @pytest.mark.show_qt_viewer
-def test_scale_bar_colored(qt_viewer: QtViewer, viewer: Viewer, qtbot) -> None:
-    scale_bar = viewer.canvas.overlays.scale_bar
+def test_scale_bar_colored(
+    qt_viewer: QtViewer, viewer_model: Viewer, qtbot
+) -> None:
+    scale_bar = viewer_model.canvas.overlays.scale_bar
 
     # Add black image
     data = np.zeros((2, 2))
@@ -1153,8 +1175,10 @@ def test_scale_bar_colored(qt_viewer: QtViewer, viewer: Viewer, qtbot) -> None:
 
 @skip_local_popups
 @pytest.mark.show_qt_viewer
-def test_scale_bar_ticks(qt_viewer: QtViewer, viewer: Viewer, qtbot) -> None:
-    scale_bar = viewer.canvas.overlays.scale_bar
+def test_scale_bar_ticks(
+    qt_viewer: QtViewer, viewer_model: Viewer, qtbot
+) -> None:
+    scale_bar = viewer_model.canvas.overlays.scale_bar
 
     # Add black image
     data = np.zeros((2, 2))
@@ -1237,7 +1261,7 @@ def test_dask_cache():
 
 @pytest.mark.show_qt_viewer
 def test_viewer_drag_to_zoom(
-    qt_viewer: QtViewer, viewer: Viewer, qtbot: QtBot
+    qt_viewer: QtViewer, viewer_model: Viewer, qtbot: QtBot
 ) -> None:
     """Test drag to zoom mouse binding."""
     canvas = qt_viewer.canvas
@@ -1301,7 +1325,7 @@ def test_viewer_drag_to_zoom(
 
 @pytest.mark.show_qt_viewer
 def test_viewer_drag_to_zoom_with_cancel(
-    qt_viewer: QtViewer, viewer: Viewer, qtbot: QtBot
+    qt_viewer: QtViewer, viewer_model: Viewer, qtbot: QtBot
 ) -> None:
     """Test drag to zoom mouse binding."""
     canvas = qt_viewer.canvas
@@ -1349,7 +1373,7 @@ def test_viewer_drag_to_zoom_with_cancel(
 
 @pytest.mark.show_qt_viewer
 def test_viewer_drag_to_zoom_3d_data(
-    qt_viewer: QtViewer, viewer: Viewer, qtbot: QtBot
+    qt_viewer: QtViewer, viewer_model: Viewer, qtbot: QtBot
 ) -> None:
     """Regression test: drag-to-zoom must not raise ValidationError with 3D data.
 
