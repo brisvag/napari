@@ -10,7 +10,6 @@ import pint
 
 from napari._vispy.overlays.base import ViewerOverlayMixin, VispyCanvasOverlay
 from napari._vispy.visuals.scale_bar import ScaleBar
-from napari.settings import get_settings
 from napari.utils._units import PREFERRED_VALUES
 from napari.utils.notifications import show_warning
 
@@ -54,10 +53,6 @@ class VispyScaleBarOverlay(ViewerOverlayMixin, VispyCanvasOverlay):
         self.viewer.dims.events.ndisplay.connect(self._on_unit_change)
         self.viewer.canvas.events.background_color.connect(
             self._on_rendering_change
-        )
-
-        get_settings().appearance.events.font_size.connect(
-            self._on_font_size_change
         )
 
         self.reset()
@@ -185,7 +180,7 @@ class VispyScaleBarOverlay(ViewerOverlayMixin, VispyCanvasOverlay):
         font_size = (
             self.overlay.font_size
             if self.overlay.font_size is not None
-            else get_settings().appearance.font_size
+            else self._default_font_size
         )
 
         width, height = self.node.set_data(
