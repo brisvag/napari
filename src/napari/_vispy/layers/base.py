@@ -311,7 +311,7 @@ class VispyBaseLayer(ABC, Generic[_L]):
                 self.layer.experimental_clipping_planes.as_array()[..., ::-1]
             )
 
-    def _on_view_direction_change(self, view, up):
+    def _on_view_direction_change(self, view=None, up=None):
         return
 
     def reset(self):
