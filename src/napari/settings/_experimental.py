@@ -52,8 +52,8 @@ class ExperimentalSettings(EventedSettings):
     )
     multisampling: bool = Field(
         False,
-        title='Enable multisampling.',
-        description='Multisampling improves quality by rendering more fragments to reduce aliasing, at the cost of some performance.',
+        title='Enable global multisampling.',
+        description='Multisampling (antialiasing) improves quality by rendering at higher resolution to reduce aliasing, at the cost of some performance.',
         json_schema_extra={'requires_restart': True},
     )
 
