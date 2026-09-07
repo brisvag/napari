@@ -320,6 +320,7 @@ class VispyBaseLayer(ABC, Generic[_L]):
         self._on_blending_change()
         self._on_matrix_change()
         self._on_experimental_clipping_planes_change()
+        self._on_view_direction_change()
 
     def _on_poll(self, event=None):
         """Called when camera moves, before we are drawn.
