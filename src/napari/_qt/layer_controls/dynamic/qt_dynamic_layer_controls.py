@@ -307,6 +307,9 @@ class QtDynamicLayerControls(QFrame):
         for control in self._controls:
             control._change_ndisplay(self._ndisplay)
 
+    def set_thick(self, is_thick: bool) -> None:
+        self._projection_mode_control.set_thick(is_thick)
+
     def _on_surface_coloring_change(
         self,
     ) -> None:

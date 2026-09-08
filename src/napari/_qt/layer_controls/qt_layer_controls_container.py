@@ -97,10 +97,14 @@ class QtLayerControlsContainer(QStackedWidget):
         self.addWidget(self.empty_widget)
         self.setCurrentWidget(self.empty_widget)
 
-        self.viewer.layers.events.inserted.connect(self._add)
-        self.viewer.layers.events.removed.connect(self._remove)
+        viewer.layers.events.inserted.connect(self._add)
+        viewer.layers.events.removed.connect(self._remove)
         viewer.layers.selection.events.changed.connect(self._populate)
         viewer.dims.events.ndisplay.connect(self._on_ndisplay_changed)
+        viewer.dims.events.thickness.connect(self._on_slice_thickness_change)
+        viewer.dims.events.not_displayed.connect(
+            self._on_slice_thickness_change
+        )
         viewer.events.theme.connect(self._on_viewer_theme_changed)
 
     def _on_ndisplay_changed(self, event):
@@ -117,6 +121,15 @@ class QtLayerControlsContainer(QStackedWidget):
 
         if self.panel is not None:
             self.panel.ndisplay = event.value
+
+    def _on_slice_thickness_change(self):
+        is_thick = self.viewer.dims.is_thick()
+        for panel in self.widgets.values():
+            if panel is not self.empty_widget:
+                panel.thick = is_thick
+
+        if self.panel is not None:
+            self.panel.thick = is_thick
 
     def _on_viewer_theme_changed(self, event=None):
         """Respond to viewer.theme changes from keybindings (Ctrl+Shift+T).

@@ -4,7 +4,10 @@ from napari._qt.layer_controls.widgets.qt_widget_controls_base import (
     QtWidgetControlsBase,
     QtWrappedLabel,
 )
-from napari._qt.utils import qt_signals_blocked
+from napari._qt.utils import (
+    qt_signals_blocked,
+    set_widgets_enabled_with_opacity,
+)
 from napari.layers import Image, Points, Vectors
 from napari.utils.events.event_utils import connect_setattr
 
@@ -57,6 +60,13 @@ class QtProjectionModeControl(QtWidgetControlsBase):
             self.projection_combobox.setCurrentText(
                 str(self._layer.projection_mode)
             )
+
+    def set_thick(self, thick) -> None:
+        set_widgets_enabled_with_opacity(
+            self,
+            [self.projection_combobox_label, self.projection_combobox],
+            thick,
+        )
 
     def get_widget_controls(
         self,
