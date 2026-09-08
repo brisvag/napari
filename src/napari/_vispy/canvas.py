@@ -266,6 +266,7 @@ class VispyCanvas:
         self.viewer.scene.camera.events.mouse_zoom.connect(
             self._on_interactive
         )
+        self.viewer.scene.camera.events.zoom.connect(self._on_cursor)
         self.viewer.scene.camera.events.angles.connect(
             self._on_view_direction_change
         )
@@ -811,6 +812,9 @@ class VispyCanvas:
         # we need to trigger _on_matrix_change once after adding the overlays so that
         # all children nodes are assigned the correct transforms
         vispy_layer._on_matrix_change()
+        # also make sure we communicate update the view direction of the new layer
+        # (needed e.g for lighting by mesh)
+        self._on_view_direction_change()
         self._update_scenegraph()
 
     def _on_view_direction_change(self):
