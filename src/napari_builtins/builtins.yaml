@@ -96,8 +96,11 @@ contributions:
       title: Generate immunohistochemistry sample
       python_name: napari_builtins._skimage_data:immunohistochemistry
     - id: napari.data.kidney
-      title: Generate kidney sample
+      title: generate kidney sample
       python_name: napari_builtins._skimage_data:kidney
+    - id: napari.data.kidney_rgb
+      title: generate kidney rgb sample
+      python_name: napari_builtins._skimage_data:kidney_rgb
     - id: napari.data.lfw_subset
       title: Generate lfw_subset sample
       python_name: napari_builtins._skimage_data:lfw_subset
@@ -304,9 +307,12 @@ contributions:
     - display_name: Immunohistochemistry (RGB)
       key: immunohistochemistry
       command: napari.data.immunohistochemistry
-    - display_name: Kidney (3D+3Ch)
+    - display_name: Kidney (3D + 3 split channels)
       key: kidney
       command: napari.data.kidney
+    - display_name: Kidney (3D in RGB)
+      key: kidney_rgb
+      command: napari.data.kidney_rgb
     - display_name: Labeled Faces in the Wild
       key: lfw_subset
       command: napari.data.lfw_subset
