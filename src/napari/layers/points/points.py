@@ -398,7 +398,7 @@ class Points(Layer):
         metadata=None,
         name=None,
         opacity=1.0,
-        projection_mode='none',
+        projection_mode='all',
         properties=None,
         property_choices=None,
         rotate=None,

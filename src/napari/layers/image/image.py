@@ -284,7 +284,7 @@ class Image(IntensityVisualizationMixin, ScalarFieldBase):
         name: str | None = None,
         opacity: float = 1.0,
         plane: dict | None = None,
-        projection_mode: str = 'none',
+        projection_mode: str = 'mean',
         rendering: str = 'mip',
         rgb: bool | None = None,
         rotate: float | Sequence[float] | npt.NDArray | None = None,
