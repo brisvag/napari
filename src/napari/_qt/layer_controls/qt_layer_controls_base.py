@@ -71,7 +71,7 @@ class QtLayerControls(QFrame):
         super().__init__()
 
         self._ndisplay: int = 2
-        self._thick: bool = False
+        self._is_thick: bool = False
         self._EDIT_BUTTONS: tuple = ()
         self._MODE_BUTTONS: dict = {}
 
@@ -251,16 +251,13 @@ class QtLayerControls(QFrame):
         self._set_transform_tool_state()
 
     @property
-    def thick(self) -> bool:
-        return self._thick
+    def is_thick(self) -> bool:
+        return self._is_thick
 
-    @thick.setter
-    def thick(self, thick: bool) -> None:
-        self._thick = thick
-        self._on_thick_change()
-
-    def _on_thick_change(self):
-        self._projection_mode_control.set_thick(self.thick)
+    @is_thick.setter
+    def is_thick(self, is_thick: bool) -> None:
+        self._is_thick = is_thick
+        self._projection_mode_control._change_is_thick(is_thick)
 
     def _set_transform_tool_state(self):
         """

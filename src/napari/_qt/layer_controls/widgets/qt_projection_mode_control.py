@@ -61,11 +61,11 @@ class QtProjectionModeControl(QtWidgetControlsBase):
                 str(self._layer.projection_mode)
             )
 
-    def set_thick(self, thick) -> None:
+    def _change_is_thick(self, is_thick) -> None:
         set_widgets_enabled_with_opacity(
-            self,
+            self.parent(),
             [self.projection_combobox_label, self.projection_combobox],
-            thick,
+            is_thick,
         )
 
     def get_widget_controls(
