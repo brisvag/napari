@@ -319,6 +319,7 @@ class Dims(EventedModel):
             val // 2 for val in value
         )
 
+    @property
     def is_thick(self) -> bool:
         """Return whether the current slice is thick.
 
