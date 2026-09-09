@@ -203,9 +203,7 @@ class QtViewer(QSplitter):
             size=self.viewer.canvas.size,
             autoswap=get_settings().experimental.autoswap_buffers,  # see #5734
             config={
-                'samples': 4
-                if get_settings().experimental.multisampling
-                else 0
+                'samples': 4 if get_settings().advanced.multisampling else 0
             },
         )
 
