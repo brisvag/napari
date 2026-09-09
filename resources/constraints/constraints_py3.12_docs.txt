@@ -1073,7 +1073,7 @@ uvicorn==0.52.4
     # via sphinx-autobuild
 virtualenv==21.7.7
     # via napari (pyproject.toml)
-vispy==0.16.2
+vispy==0.17.0
     # via
     #   napari (pyproject.toml)
     #   napari-svg
