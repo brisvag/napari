@@ -10,7 +10,6 @@ from napari._qt.layer_controls.dynamic.widgets.qt_widget_controls_base import (
 )
 from napari._qt.utils import (
     qt_signals_blocked,
-    set_widgets_enabled_with_opacity,
 )
 from napari.utils.events.event_utils import connect_setattr
 
@@ -83,11 +82,8 @@ class QtProjectionModeControl(QtWidgetControlsBase):
 
     def _change_is_thick(self, is_thick: bool) -> None:
         super()._change_is_thick(is_thick)
-        set_widgets_enabled_with_opacity(
-            self.parent(),
-            [self.projection_combobox_label, self.projection_combobox],
-            is_thick,
-        )
+        self.projection_combobox_label.setVisible(is_thick)
+        self.projection_combobox.setVisible(is_thick)
 
     def get_widget_controls(
         self,
