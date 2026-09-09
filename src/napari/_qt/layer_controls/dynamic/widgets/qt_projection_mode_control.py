@@ -75,9 +75,8 @@ class QtProjectionModeControl(QtWidgetControlsBase):
         self.projection_combobox.setToolTip(
             'Choose how data contained in the current thick slice is\n'
             'projected onto the displayed dimensions.\n'
-            'For this to have an effect, slice thickness must be\n'
-            'greater than zero. Right click on a dimension slider\n'
-            'to set slice thickness for that dimension.'
+            'To modify the slice thickness for a given dimension,\n'
+            'right click on that dimension slider.'
         )
 
     def _on_projection_mode_change(self) -> None:
