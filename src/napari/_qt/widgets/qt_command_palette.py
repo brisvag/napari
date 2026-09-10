@@ -487,19 +487,21 @@ def _iter_matched_actions(
     names = list(name_to_command)
     commands = list(name_to_command.values())
 
-    def custom_scorer(query, candidate, *, score_cutoff=0):
+    def custom_scorer(
+        s1: str, s2: str, *, score_cutoff: float | None = 0
+    ) -> float:
         # this acts mainly like partial_token_set_ratio (scoring
         # higher the more tokens in any order are in the candidate),
         # but down-weighs a bit those that are in the wrong order or
         # contain the wrong tokens
-        token_score = fuzz.partial_token_set_ratio(query, candidate)
+        token_score = fuzz.partial_token_set_ratio(s1, s2)
 
-        order_score = fuzz.WRatio(query, candidate)
+        order_score = fuzz.WRatio(s1, s2)
 
         # Weighted combination
         score = 0.7 * token_score + 0.3 * order_score
 
-        return score if score >= score_cutoff else 0
+        return score if score_cutoff and score >= score_cutoff else 0
 
     for _, score, command_idx in process.extract(
         input_text,
