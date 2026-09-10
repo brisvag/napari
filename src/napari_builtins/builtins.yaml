@@ -265,7 +265,7 @@ contributions:
     - display_name: Cell
       key: cell
       command: napari.data.cell
-    - display_name: Cells (3D+2Ch)
+    - display_name: Cells (3D, 2Ch)
       key: cells3d
       command: napari.data.cells3d
     - display_name: Checkerboard
@@ -307,10 +307,10 @@ contributions:
     - display_name: Immunohistochemistry (RGB)
       key: immunohistochemistry
       command: napari.data.immunohistochemistry
-    - display_name: Kidney (3D + 3 split channels)
+    - display_name: Kidney (3D, 3Ch)
       key: kidney
       command: napari.data.kidney
-    - display_name: Kidney (3D in RGB)
+    - display_name: Kidney (3D, RGB)
       key: kidney_rgb
       command: napari.data.kidney_rgb
     - display_name: Labeled Faces in the Wild
