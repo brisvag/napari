@@ -490,8 +490,8 @@ def _iter_matched_actions(
     def custom_scorer(query, candidate, *, score_cutoff=0):
         # this acts mainly like partial_token_set_ratio (scoring
         # higher the more tokens in any order are in the candidate),
-        # but down-weighs a bit those that are in the wrong order.
-        # this makes it so that
+        # but down-weighs a bit those that are in the wrong order or
+        # contain the wrong tokens
         token_score = fuzz.partial_token_set_ratio(query, candidate)
 
         order_score = fuzz.WRatio(query, candidate)
