@@ -196,12 +196,18 @@ def rgb_to_luminance(
 
 # can also work on more arbitrarily shaped arrays and with values outside of [0, 1]
 @overload
-def rgb_to_luminance(rgb: np.ndarray) -> np.ndarray: ...
+def rgb_to_luminance(
+    rgb: np.ndarray[tuple[int, ...]],
+) -> np.ndarray[tuple[int, ...], np.dtype[np.floating]]: ...
 
 
 def rgb_to_luminance(
     rgb: ColorValue | ColorArray | np.ndarray,
-) -> float | np.ndarray[tuple[int], np.dtype[np.floating]]:
+) -> (
+    float
+    | np.ndarray[tuple[int], np.dtype[np.floating]]
+    | np.ndarray[tuple[int, ...], np.dtype[np.floating]]
+):
     if rgb.shape[-1] == 3:
         factor = np.array([0.2126, 0.7152, 0.0722], dtype=np.float32)
     elif rgb.shape[-1] == 4:
