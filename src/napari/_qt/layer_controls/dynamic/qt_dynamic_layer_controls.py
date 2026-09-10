@@ -225,6 +225,7 @@ class QtDynamicLayerControls(QFrame):
         super().__init__()
 
         self._ndisplay: int = 2
+        self._is_thick: bool = False
         self._layers = layers
         self._controls = []
 
