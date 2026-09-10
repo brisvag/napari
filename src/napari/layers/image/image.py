@@ -27,6 +27,7 @@ from napari.layers.intensity_mixin import IntensityVisualizationMixin
 from napari.layers.utils.layer_utils import calc_data_range
 from napari.types import LayerDataType
 from napari.utils._dtype import get_dtype_limits, normalize_dtype
+from napari.utils.color import rgb_to_luminance
 from napari.utils.colormaps import ensure_colormap
 from napari.utils.colormaps.colormap_utils import _coerce_contrast_limits
 
@@ -657,8 +658,6 @@ class Image(IntensityVisualizationMixin, ScalarFieldBase):
             finally:
                 self._auto_contrast = prev
 
-        return
-
     def _calculate_value_from_ray(
         self, values: npt.NDArray
     ) -> float | npt.NDArray | None:
@@ -674,12 +673,7 @@ class Image(IntensityVisualizationMixin, ScalarFieldBase):
         if np.all(np.isnan(values)):
             return None
 
-        if self.rgb:
-            luminance = values @ np.array(
-                [0.2126, 0.7152, 0.0722], dtype=np.float32
-            )
-        else:
-            luminance = values
+        luminance = rgb_to_luminance(values) if self.rgb else values
 
         # in isosurface we return the value at the hit surface;
         # in non-rgb it's ~= iso_threshold. Return None if nothing was hit.
