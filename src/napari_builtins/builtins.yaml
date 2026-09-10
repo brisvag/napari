@@ -96,10 +96,10 @@ contributions:
       title: Generate immunohistochemistry sample
       python_name: napari_builtins._skimage_data:immunohistochemistry
     - id: napari.data.kidney
-      title: generate kidney sample
+      title: Generate kidney sample
       python_name: napari_builtins._skimage_data:kidney
     - id: napari.data.kidney_rgb
-      title: generate kidney rgb sample
+      title: Generate kidney rgb sample
       python_name: napari_builtins._skimage_data:kidney_rgb
     - id: napari.data.lfw_subset
       title: Generate lfw_subset sample
