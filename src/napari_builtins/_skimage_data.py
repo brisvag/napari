@@ -32,6 +32,7 @@ def _load_skimage_data(name, **kwargs):
                 skimage.data.kidney(),
                 {
                     'name': 'Kidney (nuclei, WGA and actin)',
+                    'rgb': True,
                 },
             )
         ]
