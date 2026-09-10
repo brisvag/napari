@@ -377,7 +377,6 @@ class QCommandList(QtW.QListView):
             if row >= max_matches:
                 self._current_max_index = max_matches
                 break
-            row = row + 1
         else:
             # if the loop completes without break
             self._current_max_index = row
@@ -488,12 +487,26 @@ def _iter_matched_actions(
     names = list(name_to_command)
     commands = list(name_to_command.values())
 
+    def custom_scorer(query, candidate, *, score_cutoff=0):
+        # this acts mainly like partial_token_set_ratio (scoring
+        # higher the more tokens in any order are in the candidate),
+        # but down-weighs a bit those that are in the wrong order.
+        # this makes it so that
+        token_score = fuzz.partial_token_set_ratio(query, candidate)
+
+        order_score = fuzz.WRatio(query, candidate)
+
+        # Weighted combination
+        score = 0.7 * token_score + 0.3 * order_score
+
+        return score if score >= score_cutoff else 0
+
     for _, score, command_idx in process.extract(
         input_text,
         names,
         limit=100,
         score_cutoff=exp.command_palette_fuzzy_search_threshold,
-        scorer=fuzz.partial_token_sort_ratio,
+        scorer=custom_scorer,
         processor=utils.default_process,
     ):
         yield score, commands[command_idx]
