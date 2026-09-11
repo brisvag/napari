@@ -209,9 +209,11 @@ def rgb_to_luminance(
     | np.ndarray[tuple[int, ...], np.dtype[np.floating]]
 ):
     if rgb.shape[-1] == 3:
-        factor = np.array([0.2126, 0.7152, 0.0722], dtype=np.float32)
-    elif rgb.shape[-1] == 4:
-        factor = np.array([0.2126, 0.7152, 0.0722, 1], dtype=np.float32)
-    else:
-        raise ValueError('can only convert rgb or rgba')
-    return rgb @ factor
+        return rgb @ np.array([0.2126, 0.7152, 0.0722], dtype=np.float32)
+    if rgb.shape[-1] == 4:
+        return (
+            rgb[..., :3]
+            @ np.array([0.2126, 0.7152, 0.0722], dtype=np.float32)
+            * rgb[..., 4]
+        )
+    raise ValueError('can only convert rgb or rgba')
