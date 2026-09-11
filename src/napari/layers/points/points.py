@@ -1726,27 +1726,24 @@ class Points(Layer):
         end_point: np.ndarray,
         dims_displayed: list[int],
     ) -> Generator[tuple[int, np.ndarray], None, None]:
-        """Get all points along a ray, sorted by distance from camera.
+        """Get all points along a ray in 3D.
 
         Parameters
         ----------
         start_point : np.ndarray
-            The start position of the ray used to interrogate the data.
+            Start of ray in data coordinates.
         end_point : np.ndarray
-            The end position of the ray used to interrogate the data.
+            End of ray in data coordinates.
         dims_displayed : list of int
-            The indices of the dimensions currently displayed in the Viewer.
+            Displayed dimensions.
 
         Yields
         ------
-        hits : tuple of (value, position)
-            The point index and its nD data-space position.
-            Sorted by distance from start_point (closest first).
+        hits : tuple of (point_index, position)
+            Each tuple contains the index and position where it was found
+            (in the same coordinate space as the input position),
+            sorted from closest to furthest along the ray.
         """
-        if (start_point is None) or (end_point is None):
-            # if the ray doesn't intersect the data volume, no points could have been intersected
-            return
-
         plane_point, plane_normal = displayed_plane_from_nd_line_segment(
             start_point, end_point, dims_displayed
         )
@@ -1783,23 +1780,22 @@ class Points(Layer):
         if len(indices) == 0:
             return
 
-        # Sort by projection distance (closest to camera first)
-        candidate_distances = projection_distances[indices]
-        sorted_order = np.argsort(candidate_distances)
-        sorted_indices = indices[sorted_order]
+        # sort by distance along the ray
+        distances = projection_distances[indices]
+        sorted_indices = indices[np.argsort(distances)]
 
         for idx in sorted_indices:
             point_index = self._view_indices[idx]
-            point_position = self.data[point_index]  # Full nD position
-            yield (int(point_index), point_position)
+            point_position = self.data[point_index]
+            yield point_index, point_position
 
     def get_ray_intersections(
         self,
-        position: list[float],
-        view_direction: np.ndarray,
+        position: npt.ArrayLike,
+        view_direction: npt.ArrayLike,
         dims_displayed: list[int],
         world: bool = True,
-    ) -> tuple[np.ndarray, np.ndarray] | tuple[None, None]:
+    ) -> tuple[np.ndarray | None, np.ndarray | None]:
         """Get the start and end point for the ray extending
         from a point through the displayed bounding box.
 
@@ -1836,6 +1832,8 @@ class Points(Layer):
             If the click does not intersect the axis-aligned data bounding box,
             None is returned.
         """
+        position = np.asarray(position)
+        view_direction = np.asarray(view_direction)
         if len(dims_displayed) != 3:
             return None, None
 

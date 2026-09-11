@@ -3095,22 +3095,23 @@ class Shapes(Layer):
         end_point: np.ndarray,
         dims_displayed: list[int],
     ) -> Generator[tuple[int, np.ndarray], None, None]:
-        """Get shape index and intersection point along a ray.
+        """Get shape indices and intersection points along a ray.
 
         Parameters
         ----------
         start_point : np.ndarray
-            The start position of the ray used to interrogate the data.
+            Start of ray in data coordinates.
         end_point : np.ndarray
-            The end position of the ray used to interrogate the data.
+            End of ray in data coordinates.
         dims_displayed : list of int
-            The indices of the dimensions currently displayed in the Viewer.
+            Displayed dimensions.
 
         Yields
         ------
-        hits : tuple of (value, position)
-            The shape index and the nD data-space position
-            of the intersection point.
+        hits : tuple of (shape_idx, position)
+            Each tuple contains the index and position where it was found
+            (in the same coordinate space as the input position),
+            sorted from closest to furthest along the ray.
         """
         value, intersection = self._get_index_and_intersection(
             start_point=start_point,
@@ -3120,6 +3121,8 @@ class Shapes(Layer):
 
         if value is None:
             return
+
+        # TODO: this should also yield multiples
 
         yield (value, intersection)
 
@@ -3155,13 +3158,6 @@ class Shapes(Layer):
             (i.e., the shape most in the foreground). The coordinate is in layer
             coordinates.
         """
-        if len(dims_displayed) != 3:
-            # return None if in 2D mode
-            return None, None
-        if (start_point is None) or (end_point is None):
-            # return None if the ray doesn't intersect the data bounding box
-            return None, None
-
         # Get the normal vector of the click plane
         start_position, ray_direction = nd_line_segment_to_displayed_data_ray(
             start_point=start_point,
