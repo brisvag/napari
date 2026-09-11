@@ -698,9 +698,9 @@ class Image(IntensityVisualizationMixin, ScalarFieldBase):
         # all the following cases are returning the *actual* value of the image at the
         # "selected" pixel, whose position changes depending on the rendering mode.
         if self.rendering == ImageRendering.MIP:
-            return values[np.nanargmax(luminance, axis=0)]
+            return values[np.nanargmax(luminance)]
         if self.rendering == ImageRendering.MINIP:
-            return values[np.nanargmin(luminance, axis=0)]
+            return values[np.nanargmin(luminance)]
         if self.rendering == ImageRendering.ATTENUATED_MIP:
             # normalize values so attenuation applies from 0 to 1
             attenuated = (
