@@ -27,6 +27,7 @@ from napari.layers.intensity_mixin import IntensityVisualizationMixin
 from napari.layers.utils.layer_utils import calc_data_range
 from napari.types import LayerDataType
 from napari.utils._dtype import get_dtype_limits, normalize_dtype
+from napari.utils.color import rgb_to_luminance
 from napari.utils.colormaps import ensure_colormap
 from napari.utils.colormaps.colormap_utils import _coerce_contrast_limits
 
@@ -678,61 +679,74 @@ class Image(IntensityVisualizationMixin, ScalarFieldBase):
             slice pixel coordinates) where it was found. The caller maps
             these back to full nD data coordinates.
         """
-        # translucent is special: just return the first value
+        if not sample_values.size:
+            return
+
+        # translucent is special: just return the first value, no matter what
         if self.rendering == ImageRendering.TRANSLUCENT:
-            if len(sample_values) == 0:
-                return
-            value = sample_values[0]
-            yield (value, sample_points[0])
+            yield sample_values[0], sample_points[0]
             return
 
-        # iso is weird too: just return None always
-        if self.rendering == ImageRendering.ISO:
-            return
-
-        # if the whole ray is NaN, we should see nothing, so return None
+        # if the whole ray is NaN, we should see nothing, so return early;
+        # this check saves us some warnings later as well, so better do it now
         if np.all(np.isnan(sample_values)):
             return
 
+        luminance = (
+            rgb_to_luminance(sample_values) if self.rgb else sample_values
+        )
+
+        # in isosurface we yield where the value crosses the thresholds
+        if self.rendering == ImageRendering.ISO:
+            inside = luminance >= self.iso_threshold
+            previous = np.empty_like(inside)
+            previous[0] = False
+            previous[1:] = inside[:-1]
+            cross_in = np.where(inside & ~previous)[0]
+            cross_out = np.where(~inside & previous)[0]
+            for crossing in cross_in | cross_out:
+                yield sample_values[crossing], sample_points[crossing]
+            return
+
         # "summary" renderings; they do not represent a specific pixel,
-        # just use the center point
+        # just use the center point as coordinate
         mid_idx = len(sample_values) // 2
         if self.rendering == ImageRendering.AVERAGE:
-            value = np.nanmean(sample_values)
-            yield (value, sample_points[mid_idx])
+            value = np.nanmean(sample_values, axis=0)
+            yield value, sample_points[mid_idx]
             return
 
         if self.rendering == ImageRendering.ADDITIVE:
-            value = np.nansum(sample_values)
-            yield (value, sample_points[mid_idx])
+            value = np.nansum(sample_values, axis=0)
+            yield value, sample_points[mid_idx]
             return
 
         # all the following cases are returning the *actual* value at the
         # "selected" pixel, whose position changes depending on the rendering mode.
         if self.rendering == ImageRendering.MIP:
-            idx = np.nanargmax(sample_values)
-            yield (sample_values[idx], sample_points[idx])
+            idx = np.nanargmax(sample_values, axis=0)
+            yield sample_values[idx], sample_points[idx]
             return
 
         if self.rendering == ImageRendering.MINIP:
-            idx = np.nanargmin(sample_values)
-            yield (sample_values[idx], sample_points[idx])
+            idx = np.nanargmin(sample_values, axis=0)
+            yield sample_values[idx], sample_points[idx]
             return
 
         if self.rendering == ImageRendering.ATTENUATED_MIP:
             # normalize values so attenuation applies from 0 to 1
-            values_attenuated = (
+            attenuated = (
                 sample_values - self.contrast_limits[0]
             ) / self.contrast_limits[1]
             step_size = 0.5
             sumval = (
                 step_size
-                * np.cumsum(np.clip(values_attenuated, 0, 1))
-                * len(values_attenuated)
+                * np.cumsum(np.clip(attenuated, 0, 1))
+                * len(attenuated)
             )
             scale = np.exp(-self.attenuation * (sumval - 1))
-            idx = np.nanargmin(values_attenuated * scale)
-            yield (sample_values[idx], sample_points[idx])
+            idx = np.nanargmin(attenuated * scale)
+            yield sample_values[idx], sample_points[idx]
             return
 
         raise RuntimeError(  # pragma: no cover

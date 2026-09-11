@@ -2229,15 +2229,13 @@ class Labels(ScalarFieldBase):
             slice pixel coordinates) where it was found. The caller maps
             these back to full nD data coordinates.
         """
-        non_bg = sample_values != self.colormap.background_value
-        if not np.any(non_bg):
-            return
-
-        # First non-background value
-        idx = np.argmax(np.ravel(non_bg))
-        value = sample_values.ravel()[idx]
-
-        yield (value, sample_points[idx])
+        # yield every hit where the label changes
+        previous = np.empty_like(sample_values)
+        previous[0] = self.colormap.background_value
+        previous[1:] = sample_values[:-1]
+        changed_indices = np.where(sample_values != previous)[0]
+        for idx in changed_indices:
+            yield (sample_values[idx], sample_points[idx])
 
     def get_status(
         self,

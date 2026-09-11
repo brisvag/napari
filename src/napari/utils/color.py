@@ -1,6 +1,6 @@
 """Contains napari color constants and utilities."""
 
-from typing import Any, Self
+from typing import Any, Self, overload
 
 import numpy as np
 from pydantic import GetCoreSchemaHandler
@@ -182,3 +182,38 @@ class ColorArray(np.ndarray):
         if isinstance(value, np.ndarray | list | tuple) and len(value) == 0:
             return np.empty((0, 4), np.float32).view(cls)
         return transform_color(value).view(cls)
+
+
+@overload
+def rgb_to_luminance(rgb: ColorValue) -> float: ...
+
+
+@overload
+def rgb_to_luminance(
+    rgb: ColorArray,
+) -> np.ndarray[tuple[int], np.dtype[np.floating]]: ...
+
+
+# can also work on more arbitrarily shaped arrays and with values outside of [0, 1]
+@overload
+def rgb_to_luminance(
+    rgb: np.ndarray[tuple[int, ...]],
+) -> np.ndarray[tuple[int, ...], np.dtype[np.floating]]: ...
+
+
+def rgb_to_luminance(
+    rgb: ColorValue | ColorArray | np.ndarray,
+) -> (
+    float
+    | np.ndarray[tuple[int], np.dtype[np.floating]]
+    | np.ndarray[tuple[int, ...], np.dtype[np.floating]]
+):
+    if rgb.shape[-1] == 3:
+        return rgb @ np.array([0.2126, 0.7152, 0.0722], dtype=np.float32)
+    if rgb.shape[-1] == 4:
+        return (
+            rgb[..., :3]
+            @ np.array([0.2126, 0.7152, 0.0722], dtype=np.float32)
+            * rgb[..., 4]
+        )
+    raise ValueError('can only convert rgb or rgba')
