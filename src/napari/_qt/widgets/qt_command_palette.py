@@ -370,6 +370,7 @@ class QCommandList(QtW.QListView):
                 break
             lw.set_command(action)
             if _enabled(action, self._app_model_context):
+                lw.setEnabled(True)
                 lw.set_text_colors(input_text, color=self._match_color)
             else:
                 lw.setDisabled(True)
