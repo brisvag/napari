@@ -23,6 +23,13 @@ def _get_vispy_flipped_axes(
     orientation: AxesOrientation3D,
     ndisplay: Literal[2, 3] = 2,
 ) -> tuple[int, int, int]:
+    # Note: the Vispy axis order is xyz, or horizontal, vertical, depth,
+    # while the napari axis order is zyx / plane-row-column, or depth, vertical,
+    # horizontal — i.e. it is exactly inverted. This switch happens when data
+    # is passed from napari to Vispy, usually with a transposition. In the camera
+    # models, this means that the order of these orientations appear in the
+    # opposite order to that in napari.components.Camera.
+    #
     # Note that the default Vispy camera orientations come from Vispy, not from us.
     vispy_default_orientation = (
         ('right', 'up', 'towards')
