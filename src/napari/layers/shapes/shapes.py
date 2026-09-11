@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import warnings
-from collections.abc import Callable, Collection, Iterable, Sized
+from collections.abc import Callable, Collection, Generator, Iterable, Sized
 from contextlib import contextmanager
 from copy import copy, deepcopy
 from typing import TYPE_CHECKING, Any, ClassVar
@@ -3089,13 +3089,13 @@ class Shapes(Layer):
 
         return value
 
-    def _get_value_3d(
+    def _iter_values_along_ray(
         self,
         start_point: np.ndarray,
         end_point: np.ndarray,
         dims_displayed: list[int],
-    ) -> tuple[float | int | None, None]:
-        """Get the layer data value along a ray
+    ) -> Generator[tuple[int, np.ndarray], None, None]:
+        """Get shape index and intersection point along a ray.
 
         Parameters
         ----------
@@ -3103,23 +3103,25 @@ class Shapes(Layer):
             The start position of the ray used to interrogate the data.
         end_point : np.ndarray
             The end position of the ray used to interrogate the data.
-        dims_displayed : List[int]
+        dims_displayed : list of int
             The indices of the dimensions currently displayed in the Viewer.
 
-        Returns
-        -------
-        value
-            The data value along the supplied ray.
-        vertex : None
-            Index of vertex if any that is at the coordinates. Always returns `None`.
+        Yields
+        ------
+        hits : tuple of (value, position)
+            The shape index and the nD data-space position
+            of the intersection point.
         """
-        value, _ = self._get_index_and_intersection(
+        value, intersection = self._get_index_and_intersection(
             start_point=start_point,
             end_point=end_point,
             dims_displayed=dims_displayed,
         )
 
-        return value, None
+        if value is None:
+            return
+
+        yield (value, intersection)
 
     def _get_index_and_intersection(
         self,

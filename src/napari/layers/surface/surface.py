@@ -33,6 +33,8 @@ from napari.utils.geometry import find_nearest_triangle_intersection
 from napari.utils.misc import StringEnum
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
+
     import pandas as pd
 
     from napari.components.dims import Dims
@@ -697,13 +699,13 @@ class Surface(IntensityVisualizationMixin, Layer):
         """
         return
 
-    def _get_value_3d(
+    def _iter_values_along_ray(
         self,
         start_point: np.ndarray | None,
         end_point: np.ndarray | None,
         dims_displayed: list[int],
-    ) -> tuple[float | int | None, int | None]:
-        """Get the layer data value along a ray
+    ) -> Generator[tuple[float, np.ndarray], None, None]:
+        """Get value and intersection point along a ray.
 
         Parameters
         ----------
@@ -711,22 +713,19 @@ class Surface(IntensityVisualizationMixin, Layer):
             The start position of the ray used to interrogate the data.
         end_point : np.ndarray
             The end position of the ray used to interrogate the data.
-        dims_displayed : List[int]
+        dims_displayed : list of int
             The indices of the dimensions currently displayed in the Viewer.
 
-        Returns
-        -------
-        value
-            The data value along the supplied ray.
-        vertex : None
-            Index of vertex if any that is at the coordinates.
+        Yields
+        ------
+        hits : tuple of (value, position)
+            The interpolated surface value and the nD
+            data-space position of the intersection point.
         """
         if len(dims_displayed) != 3:
-            # only applies to 3D
-            return None, None
+            return
         if (start_point is None) or (end_point is None):
-            # return None if the ray doesn't intersect the data bounding box
-            return None, None
+            return
 
         start_position, ray_direction = nd_line_segment_to_displayed_data_ray(
             start_point=start_point,
@@ -749,7 +748,7 @@ class Surface(IntensityVisualizationMixin, Layer):
             or intersection is None
             or self._view_vertex_values is None
         ):
-            return None, None
+            return
 
         # add the full nD coords to intersection
         intersection_point = start_point.copy()
@@ -764,7 +763,7 @@ class Surface(IntensityVisualizationMixin, Layer):
         vertex_values = self._view_vertex_values[triangle_vertex_indices]
         intersection_value = (barycentric_coordinates * vertex_values).sum()
 
-        return intersection_value, intersection_index
+        yield intersection_value, intersection_point
 
     def __copy__(self):
         """Create a copy of this layer.

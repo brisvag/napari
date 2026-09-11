@@ -31,7 +31,7 @@ from napari.utils.colormaps import ensure_colormap
 from napari.utils.colormaps.colormap_utils import _coerce_contrast_limits
 
 if typing.TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Generator, Sequence
 
     import numpy.typing as npt
     import pint
@@ -656,42 +656,74 @@ class Image(IntensityVisualizationMixin, ScalarFieldBase):
             finally:
                 self._auto_contrast = prev
 
-    def _calculate_value_from_ray(self, values: npt.NDArray) -> float | None:
-        # translucent is special: just return the first value, no matter what
+    def _calculate_values_and_positions_from_ray_samples(
+        self,
+        sample_values: npt.NDArray,
+        sample_points: npt.NDArray,
+    ) -> Generator[tuple[float, np.ndarray], None, None]:
+        """Calculate values and positions from ray samples.
+
+        Parameters
+        ----------
+        sample_values : np.ndarray
+            Values sampled along the ray.
+        sample_points : np.ndarray
+            Points along the ray in displayed slice pixel coordinates,
+            clamped to the slice bounding box.
+
+        Yields
+        ------
+        hits : tuple of (value, position)
+            Each tuple contains the value and the position (in displayed
+            slice pixel coordinates) where it was found. The caller maps
+            these back to full nD data coordinates.
+        """
+        # translucent is special: just return the first value
         if self.rendering == ImageRendering.TRANSLUCENT:
-            return np.ravel(values)[0]
+            if len(sample_values) == 0:
+                return
+            value = sample_values[0]
+            yield (value, sample_points[0])
+            return
+
         # iso is weird too: just return None always
         if self.rendering == ImageRendering.ISO:
-            return None
+            return
 
         # if the whole ray is NaN, we should see nothing, so return None
-        # this check saves us some warnings later as well, so better do it now
-        if np.all(np.isnan(values)):
-            return None
+        if np.all(np.isnan(sample_values)):
+            return
 
-        # "summary" renderings; they do not represent a specific pixel, so we just
-        # return the summary value. We should probably differentiate these somehow.
-        # these are also probably not the same as how the gpu does it...
+        # "summary" renderings; they do not represent a specific pixel,
+        # just use the center point
+        mid_idx = len(sample_values) // 2
         if self.rendering == ImageRendering.AVERAGE:
-            return np.nanmean(values)
-        if self.rendering == ImageRendering.ADDITIVE:
-            # TODO: this is "broken" cause same pixel gets multisampled...
-            #       but it looks like it's also overdoing it in vispy vis too?
-            #       I don't know if there's a way to *not* do it...
-            return np.nansum(values)
+            value = np.nanmean(sample_values)
+            yield (value, sample_points[mid_idx])
+            return
 
-        # all the following cases are returning the *actual* value of the image at the
+        if self.rendering == ImageRendering.ADDITIVE:
+            value = np.nansum(sample_values)
+            yield (value, sample_points[mid_idx])
+            return
+
+        # all the following cases are returning the *actual* value at the
         # "selected" pixel, whose position changes depending on the rendering mode.
         if self.rendering == ImageRendering.MIP:
-            return np.nanmax(values)
+            idx = np.nanargmax(sample_values)
+            yield (sample_values[idx], sample_points[idx])
+            return
+
         if self.rendering == ImageRendering.MINIP:
-            return np.nanmin(values)
+            idx = np.nanargmin(sample_values)
+            yield (sample_values[idx], sample_points[idx])
+            return
+
         if self.rendering == ImageRendering.ATTENUATED_MIP:
             # normalize values so attenuation applies from 0 to 1
             values_attenuated = (
-                values - self.contrast_limits[0]
+                sample_values - self.contrast_limits[0]
             ) / self.contrast_limits[1]
-            # approx, step size is actually calculated with int(lenght(ray) * 2)
             step_size = 0.5
             sumval = (
                 step_size
@@ -699,7 +731,9 @@ class Image(IntensityVisualizationMixin, ScalarFieldBase):
                 * len(values_attenuated)
             )
             scale = np.exp(-self.attenuation * (sumval - 1))
-            return values[np.nanargmin(values_attenuated * scale)]
+            idx = np.nanargmin(values_attenuated * scale)
+            yield (sample_values[idx], sample_points[idx])
+            return
 
         raise RuntimeError(  # pragma: no cover
             f'ray value calculation not implemented for {self.rendering}'

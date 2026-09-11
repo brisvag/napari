@@ -67,6 +67,7 @@ from napari.utils.transforms import Affine
 if TYPE_CHECKING:
     from collections.abc import (
         Callable,
+        Generator,
         Iterable,
         Sequence,
         Set as AbstractSet,
@@ -1678,7 +1679,7 @@ class Points(Layer):
         )
 
     def _get_value(self, position) -> int | None:
-        """Index of the point at a given 2D position in data coordinates.
+        """Index of the point at a given position in data coordinates.
 
         Parameters
         ----------
@@ -1719,13 +1720,13 @@ class Points(Layer):
 
         return selection
 
-    def _get_value_3d(
+    def _iter_values_along_ray(
         self,
         start_point: np.ndarray,
         end_point: np.ndarray,
         dims_displayed: list[int],
-    ) -> int | None:
-        """Get the layer data value along a ray
+    ) -> Generator[tuple[int, np.ndarray], None, None]:
+        """Get all points along a ray, sorted by distance from camera.
 
         Parameters
         ----------
@@ -1733,17 +1734,19 @@ class Points(Layer):
             The start position of the ray used to interrogate the data.
         end_point : np.ndarray
             The end position of the ray used to interrogate the data.
-        dims_displayed : List[int]
+        dims_displayed : list of int
             The indices of the dimensions currently displayed in the Viewer.
 
-        Returns
-        -------
-        value : Union[int, None]
-            The data value along the supplied ray.
+        Yields
+        ------
+        hits : tuple of (value, position)
+            The point index and its nD data-space position.
+            Sorted by distance from start_point (closest first).
         """
         if (start_point is None) or (end_point is None):
             # if the ray doesn't intersect the data volume, no points could have been intersected
-            return None
+            return
+
         plane_point, plane_normal = displayed_plane_from_nd_line_segment(
             start_point, end_point, dims_displayed
         )
@@ -1777,14 +1780,18 @@ class Points(Layer):
         )
         indices = np.where(in_slice_matches)[0]
 
-        if len(indices) > 0:
-            # find the point that is most in the foreground
-            candidate_point_distances = projection_distances[indices]
-            closest_index = indices[np.argmin(candidate_point_distances)]
-            selection = self._view_indices[closest_index]
-        else:
-            selection = None
-        return selection
+        if len(indices) == 0:
+            return
+
+        # Sort by projection distance (closest to camera first)
+        candidate_distances = projection_distances[indices]
+        sorted_order = np.argsort(candidate_distances)
+        sorted_indices = indices[sorted_order]
+
+        for idx in sorted_indices:
+            point_index = self._view_indices[idx]
+            point_position = self.data[point_index]  # Full nD position
+            yield (int(point_index), point_position)
 
     def get_ray_intersections(
         self,

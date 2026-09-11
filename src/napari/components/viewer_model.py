@@ -23,6 +23,7 @@ from urllib.parse import urlparse
 
 import numpy as np
 from app_model.expressions import Context
+from numpy import typing as npt
 
 # This cannot be condition to TYPE_CHECKING or the stubgen fails
 # with undefined Context.
@@ -970,6 +971,126 @@ class ViewerModel(KeymapProvider, MousemapProviderPydantic, EventedModel):
             self.status, self.tooltip.text = status
         if (active := self.layers.selection.active) is not None:
             self.help = active.help
+
+    def canvas_to_world(self, canvas_position: tuple[int, int]) -> np.ndarray:
+        """Convert canvas pixel position to world coordinates.
+
+        Parameters
+        ----------
+        canvas_position : tuple of int
+            (x, y) position in canvas pixels.
+
+        Returns
+        -------
+        world_position : np.ndarray
+            Canvas position (on the canvas plane) converted to world coordinates.
+        """
+        from scipy.spatial.transform import Rotation as R
+
+        ndisplay = self.dims.ndisplay
+        camera = self.scene.camera
+
+        canvas_size = np.array(self.canvas.size)
+        canvas_center = canvas_size / 2
+        view_center = np.array(camera.center)
+
+        if ndisplay == 2:
+            world_displayed = (
+                np.array(canvas_position) - canvas_center
+            ) / camera.zoom + view_center[-2:]
+
+        else:
+            view_center = np.array(camera.center)
+            rot = R.from_euler('xyz', camera.angles, degrees=True)
+            rot_matrix = rot.as_matrix()
+            canvas_position_3d = np.array([*canvas_position, 0])
+            canvas_center_3d = np.append(canvas_center, 0)
+            world_displayed = (
+                rot_matrix.T
+                @ (canvas_position_3d - canvas_center_3d)
+                / camera.zoom
+                + view_center
+            )
+
+        # embed it in the world point
+        position_world = list(self.dims.point)
+        for i, d in enumerate(self.dims.displayed):
+            position_world[d] = world_displayed[i]
+
+        return np.array(position_world)
+
+    def get_layer_values(
+        self,
+        canvas_position: tuple[int, int] | None = None,
+        view_direction: npt.ArrayLike | None = None,
+        layers: Sequence[Layer] | None = None,
+    ) -> list[tuple[Layer, Any, np.ndarray]]:
+        """Get all layer values at canvas position, sorted by distance from camera.
+
+        If no position is provided, uses the values of cursor.canvas_position and
+        cursor._view_direction. If a position is provided, uses camera.view_direction
+        (orthographic) unless a view direction is provided as well.
+
+        Parameters
+        ----------
+        canvas_position : tuple of int, optional
+            (x, y) position in canvas pixels.
+        view_direction : np.ndarray, optional
+            View direction at the canvas position.
+
+        Returns
+        ------
+        hits : list[tuple[Layer, Any, np.ndarray]]
+            list of (layer, value, world position), sorted by distance
+            from camera (closest first).
+        """
+        if canvas_position is None:
+            canvas_position = self.cursor.canvas_position
+            view_direction = self.cursor._view_direction
+        elif self.dims.ndisplay == 2:
+            view_direction = None
+        elif view_direction is None:
+            view_direction = self.scene.camera.view_direction
+
+        if canvas_position is None:
+            # happens if the cursor is not on the canvas
+            return []
+
+        if layers is None:
+            layers = self.layers
+        elif not all(layer in self.layers for layer in layers):
+            raise ValueError(
+                'can only get values of layers that are in this viewer'
+            )
+
+        # loop layers front to back: in case of identical hits,
+        # the frontmost is prioritized (as in 2D)
+        layers = sorted(
+            layers, key=lambda layer: self.layers.index(layer), reverse=True
+        )
+
+        world_position = self.canvas_to_world(canvas_position)
+
+        hits = []
+        for layer in layers[::-1]:
+            if not layer.visible or layer.opacity == 0:
+                # TODO: is this ok? this is how it works elsewhere...
+                continue
+
+            for value, hit_position in layer.iter_values_along_ray(
+                world_position,
+                view_direction=view_direction,
+                dims_displayed=list(self.dims.displayed),
+                world=True,
+            ):
+                distance = np.linalg.norm(
+                    np.asarray(hit_position) - world_position
+                )
+                hits.append((layer, value, hit_position, distance))
+
+        # sort by distance from the camera and discard that
+        hits.sort(key=lambda x: x[3])
+        return [(layer, value, pos) for layer, value, pos, _ in hits]
 
     @property
     def experimental(self):

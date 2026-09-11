@@ -2,6 +2,7 @@
 # from napari.utils.events import Event
 # from napari.utils.colormaps import AVAILABLE_COLORMAPS
 
+from collections.abc import Generator
 from typing import TYPE_CHECKING, Any, Optional
 from warnings import warn
 
@@ -295,6 +296,55 @@ class Tracks(Layer):
         if val is None:
             return None
         return int(val)
+
+    def _iter_values_along_ray(
+        self,
+        start_point: np.ndarray | None,
+        end_point: np.ndarray | None,
+        dims_displayed: list[int],
+    ) -> Generator[tuple[int, np.ndarray], None, None]:
+        """Get track ID and position nearest to the ray.
+
+        Parameters
+        ----------
+        start_point : np.ndarray
+            The start position of the ray used to interrogate the data.
+        end_point : np.ndarray
+            The end position of the ray used to interrogate the data.
+        dims_displayed : list of int
+            The indices of the dimensions currently displayed in the Viewer.
+
+        Yields
+        ------
+        hits : tuple of (value, position)
+            The track ID and its nD data-space position.
+        """
+        if start_point is None or end_point is None:
+            return
+
+        # Use the start point to find the nearest track
+        # For 3D, we should ideally sample along the ray, but for now
+        # we'll use the start point as an approximation
+        val = self._manager.get_value(start_point)
+        if val is None:
+            return
+
+        track_id = int(val)
+
+        # Find the position of this track point
+        # Query the KD-tree to get the actual point position
+        if self._manager._kdtree is None:
+            return
+
+        _d, idx = self._manager._kdtree.query(start_point, k=1)
+        if idx >= self._manager._points.shape[0]:
+            return
+
+        # Get the track point position (excluding time dimension)
+        # The track data includes time as the first column
+        point_position = self._manager._points[idx]
+
+        yield track_id, point_position
 
     def _update_thumbnail(self) -> None:
         """Update thumbnail with current points and colors."""
