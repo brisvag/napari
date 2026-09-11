@@ -142,11 +142,15 @@ def angles_from_view_and_up_directions(
     """
     from scipy.spatial.transform import Rotation as R
 
-    view = np.asarray(view_direction, dtype=float)
-    view = view / np.linalg.norm(view)
-    up = np.asarray(up_direction, dtype=float)
-    up = up - np.dot(up, view) * view
-    up = up / np.linalg.norm(up)
+    # normalize view direction
+    view_raw = np.asarray(view_direction, dtype=float)
+    view = view_raw / np.linalg.norm(view_raw)
+    # ensure up direction is exactly orthogonal to up
+    # (it often isn't due to float imprecision and would
+    # result in a bad matrix)
+    up_raw = np.asarray(up_direction, dtype=float)
+    up_ortho = up_raw - np.dot(up_raw, view) * view
+    up = up_ortho / np.linalg.norm(up_ortho)
 
     # the rotation maps the home-view basis onto the given view/up basis
     base_view, base_up = _base_view_and_up_direction(orientation)
