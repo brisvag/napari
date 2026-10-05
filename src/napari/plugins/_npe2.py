@@ -87,7 +87,9 @@ def write_layers(
     if writer is None:
         try:
             paths, writer = io_utils.write_get_writer(
-                path=path, layer_data=layer_data, plugin_name=plugin_name
+                path=path,
+                layer_data=layer_data,  # pyrefly: ignore [bad-argument-type]
+                plugin_name=plugin_name,
             )
         except ValueError:
             return [], ''
@@ -115,6 +117,9 @@ def get_widget_contribution(
             widgets_seen.add(contrib.display_name)
     if widget_name and widgets_seen:
         msg = f'Plugin {plugin_name!r} does not provide a widget named {widget_name!r}. It does provide: {widgets_seen}'
+        raise KeyError(msg)
+    if widget_name:
+        msg = f'Plugin {plugin_name!r} does not provide any widgets.'
         raise KeyError(msg)
     return None
 
@@ -380,8 +385,16 @@ def _npe2_manifest_to_actions(
     }
     # Filter widgets as are registered via `_safe_register_qt_actions`
     widget_ids = {widget.command for widget in mf.contributions.widgets or ()}
+    # Readers and writers need a path and data, which the palette can't give
+    io_ids = {
+        contrib.command
+        for contrib in [
+            *(mf.contributions.readers or ()),
+            *(mf.contributions.writers or ()),
+        ]
+    }
 
-    # We want to register all `Actions` so they appear in the command palette
+    # Register the other commands as `Actions`, most of them in the palette
     actions: list[Action] = []
     for cmd in mf.contributions.commands or ():
         if cmd.id not in sample_data_ids | widget_ids:
@@ -396,6 +409,7 @@ def _npe2_manifest_to_actions(
                     callback=cmd.python_name or '',
                     menus=menu_cmds.get(cmd.id),
                     keybindings=[],
+                    palette=cmd.id not in io_ids,
                 )
             )
 

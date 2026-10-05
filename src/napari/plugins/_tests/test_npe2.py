@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 import npe2
 import numpy as np
 import pytest
-from npe2 import PluginManifest
+from npe2 import DynamicPlugin, PluginManifest
 
 if TYPE_CHECKING:
     from npe2._pytest_plugin import TestPluginManager
@@ -16,18 +16,6 @@ from napari.plugins import _npe2
 
 PLUGIN_NAME = 'my-plugin'  # this matches the sample_manifest
 PLUGIN_DISPLAY_NAME = 'My Plugin'  # this matches the sample_manifest
-MANIFEST_PATH = Path(__file__).parent / '_sample_manifest.yaml'
-
-
-@pytest.fixture
-def mock_pm(npe2pm: 'TestPluginManager'):
-    from napari.plugins import _initialize_plugins
-
-    _initialize_plugins.cache_clear()
-    mock_reg = MagicMock()
-    npe2pm._command_registry = mock_reg
-    with npe2pm.tmp_plugin(manifest=MANIFEST_PATH):
-        yield npe2pm
 
 
 def test_read_no_stack(mock_pm: 'TestPluginManager'):
@@ -147,6 +135,13 @@ def test_get_widget_contribution(mock_pm: 'TestPluginManager'):
     mock_pm.commands.get.assert_not_called()
 
 
+def test_get_widget_contribution_no_widgets(tmp_plugin: DynamicPlugin):
+    """Test error raised when `widget_name` provided but plugin provides no widgets."""
+    with pytest.raises(KeyError) as e:
+        _npe2.get_widget_contribution('tmp_plugin', 'No widgets')
+    assert "Plugin 'tmp_plugin' does not provide any widgets" in str(e.value)
+
+
 def test_populate_qmenu(mock_pm: 'TestPluginManager'):
     menu = MagicMock()
     _npe2.populate_qmenu(menu, 'napari/file/new_layer')
@@ -246,3 +241,24 @@ def test_plugin_actions(mock_pm: 'TestPluginManager', mock_app_model):
     menus_items4 = list(app.menus.get_menu('napari/file/new_layer'))
     assert len(menus_items4) == 5
     assert 'my-plugin.hello_world' in app.commands
+
+
+def test_reader_and_writer_commands_not_in_palette(
+    mock_pm: 'TestPluginManager', mock_app_model
+):
+    from app_model.types import MenuItem
+
+    from napari._app_model import get_app_model
+    from napari.plugins import _initialize_plugins
+
+    app = get_app_model()
+    _initialize_plugins()
+    palette = {
+        item.command.id
+        for item in app.menus.get_menu(app.menus.COMMAND_PALETTE_ID)
+        if isinstance(item, MenuItem)
+    }
+    assert 'my-plugin.hello_world' in palette
+    for command in ('my-plugin.some_reader', 'my-plugin.my_writer'):
+        assert command in app.commands
+        assert command not in palette
