@@ -67,6 +67,7 @@ def update_text(
     text_manager = layer.text
     node.rotation = text_manager.rotation
     node.color = colors
+    node.scaling = text_manager.scaling
 
     node.font_size = (
         text_manager.size
