@@ -321,9 +321,6 @@ class VispyCanvas:
         )
 
         self.viewer.canvas.events.size.connect(self._on_model_size_change)
-        get_settings().appearance.events.font_size.connect(
-            self._update_font_sizes
-        )
         self.destroyed.connect(self._disconnect_events)
         get_settings().appearance.events.font_size.connect(
             self._update_font_sizes
