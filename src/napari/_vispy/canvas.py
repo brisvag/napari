@@ -763,6 +763,7 @@ class VispyCanvas:
         """
         self.layer_to_visual[napari_layer] = vispy_layer
         self._layer_overlay_to_visual[napari_layer] = {}
+        vispy_layer.set_default_font_size(get_settings().appearance.font_size)
 
         napari_layer.events.visible.connect(self._update_scenegraph)
         overlay_callback = partial(self._update_layer_overlays, napari_layer)
