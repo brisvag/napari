@@ -360,6 +360,9 @@ class VispyCanvas:
         disconnect_events(self.viewer.layers.events, self)
         disconnect_events(self.viewer.cursor.events, self)
         disconnect_events(self._scene_canvas.events, self)
+        get_settings().appearance.events.font_size.disconnect(
+            self._update_font_sizes
+        )
 
     @property
     def central_widget(self) -> Widget:
