@@ -97,8 +97,8 @@ def create_func(cls, name=None, doc=None):
             since_version,
         ) in cls.__init__._rename_argument:
             func = rename_argument(
-                from_name=from_name,
-                to_name=to_name,
+                previous_name=from_name,
+                new_name=to_name,
                 since_version=since_version,
                 window=window,
             )(func)

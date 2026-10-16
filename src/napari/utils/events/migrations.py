@@ -38,8 +38,8 @@ def deprecation_warning_event(
     new_path = f'{prefix}.{new_name}'
     return WarningEmitter(
         deprecation_message(
-            name=previous_path,
-            replacement=new_path,
+            oldname=previous_path,
+            new_name=new_path,
             since=since_version,
             window=window,
         ),

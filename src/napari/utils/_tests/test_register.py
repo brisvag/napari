@@ -52,14 +52,14 @@ class SimpleClassRenamed:
     """Simple class to test create_func"""
 
     @rename_argument(
-        from_name='c',
-        to_name='a',
+        previous_name='c',
+        new_name='a',
         window='2027-Q1',
         since_version='0.4.18',
     )
     @rename_argument(
-        from_name='d',
-        to_name='b',
+        previous_name='d',
+        new_name='b',
         window='2027-Q1',
         since_version='0.4.18',
     )

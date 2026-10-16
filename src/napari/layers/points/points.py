@@ -82,8 +82,8 @@ if TYPE_CHECKING:
 
 
 _OUT_SLICE_DISP_WARNING_MSG = deprecation_message(
-    name='out_of_slice_display (previously "n_dimensional")',
-    replacement='projection_mode',
+    oldname='out_of_slice_display (previously "n_dimensional")',
+    new_name='projection_mode',
     since='0.9.0',
     window='2027-Q1',
     details=(

@@ -22,7 +22,6 @@ from typing import (
 )
 from weakref import WeakValueDictionary
 
-from qtpy import QT5
 from qtpy.QtCore import (
     QEvent,
     QEventLoop,
@@ -80,14 +79,14 @@ from napari.utils import perf
 from napari.utils._proxies import MappingProxy, PublicOnlyProxy
 from napari.utils.events import Event
 from napari.utils.io import imsave
-from napari.utils.migrations import deprecation_message, deprecation_warning
+from napari.utils.migrations import deprecation_warning
 from napari.utils.misc import (
     in_ipython,
     in_jupyter,
     in_python_repl,
     running_as_constructor_app,
 )
-from napari.utils.notifications import Notification, show_warning
+from napari.utils.notifications import Notification
 from napari.utils.task_status import Status, TaskStatusManager
 from napari.utils.theme import _themes, get_system_theme
 
@@ -104,11 +103,6 @@ if TYPE_CHECKING:
     from napari.viewer import Viewer
 
 _sentinel = object()
-
-SHOW_QT_WARNING = QT5
-# a variable to check if we run with PyQt5 backend. As we dropped PySide it is enough to check Qt version
-
-del QT5
 
 MenuStr = Literal[
     'file_menu',
@@ -234,8 +228,6 @@ class _QtMainWindow(QMainWindow):
 
     def showEvent(self, event: QShowEvent):
         """Override to handle window state changes."""
-        global SHOW_QT_WARNING
-
         settings = get_settings()
         # if event loop is not running, we don't want to start the thread
         # If event loop is running, the loopLevel will be above 0
@@ -244,18 +236,6 @@ class _QtMainWindow(QMainWindow):
             and QApplication.instance().thread().loopLevel()
         ):
             self.status_thread.start()
-
-        if SHOW_QT_WARNING:
-            show_warning(
-                deprecation_message(
-                    name='napari support for the PyQt5 backend',
-                    replacement='the PyQt6 or PySide6 backend',
-                    since='0.8.0',
-                    window='2026-Q4',
-                )
-            )
-
-            SHOW_QT_WARNING = False
 
         super().showEvent(event)
 
@@ -303,13 +283,7 @@ class _QtMainWindow(QMainWindow):
             e.type() == QEvent.Type.ToolTip
             and self._qt_viewer.viewer.tooltip.visible
         ):
-            # globalPos is for Qt5 e.globalPosition().toPoint() is for QT6
-            # https://doc-snapshots.qt.io/qt6-dev/qmouseevent-obsolete.html#globalPos
-            pnt = (
-                e.globalPosition().toPoint()
-                if hasattr(e, 'globalPosition')
-                else e.globalPos()
-            )
+            pnt = e.globalPosition().toPoint()
             rect = QRect(pnt.x() - 5, pnt.y() - 5, 10, 10)
             QToolTip.showText(
                 pnt, self._qt_viewer.viewer.tooltip.text, self, rect
