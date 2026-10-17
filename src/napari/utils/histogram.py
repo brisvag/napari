@@ -36,15 +36,13 @@ def compute_histogram(
     data = _get_data(layer, mode)
 
     if data is None or data.size == 0:
-        empty = _make_empty()
-        yield empty['bin_edges'], empty['counts']
+        yield _make_empty()
         return
 
     if getattr(layer, 'rgb', False):
         data = _sample_rgb_and_luminance(data, max_samples)
         if data.size == 0:
-            empty = _make_empty()
-            yield empty['bin_edges'], empty['counts']
+            yield _make_empty()
             return
 
     if mode == 'full' and _has_chunks(data):
@@ -63,11 +61,9 @@ def compute_histogram(
         yield bin_edges, counts
 
 
-def _make_empty() -> dict[str, np.ndarray]:
-    return {
-        'bin_edges': np.array([0.0, 1.0]),
-        'counts': np.array([0.0]),
-    }
+def _make_empty() -> tuple[np.ndarray, np.ndarray]:
+    """Return ``(bin_edges, counts)`` of an empty single-bin histogram."""
+    return np.array([0.0, 1.0]), np.array([0.0])
 
 
 def _calc_histogram(

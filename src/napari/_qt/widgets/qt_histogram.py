@@ -49,7 +49,7 @@ class QtHistogramWidget(QWidget):
     ) -> None:
         super().__init__(parent)
         self.layer = layer
-        self.bin_edges, self.counts = _make_empty().values()
+        self.bin_edges, self.counts = _make_empty()
         self._constructed = False
         self._constructing_content = False
         self._appearance = get_settings().appearance

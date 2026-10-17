@@ -175,7 +175,7 @@ class Histogram(EventedModel):
         Do not use in a separate thread (use _compute_async_no_events instead).
         """
         # the generator may yield nothing (e.g. first chunk fails to load)
-        bin_edges, counts = _make_empty().values()
+        bin_edges, counts = _make_empty()
         for bin_edges, counts in self._compute_async_no_events(layer):
             self._publish_partial(bin_edges, counts)
             yield bin_edges, self._scale(counts)
@@ -198,7 +198,7 @@ class Histogram(EventedModel):
         """
         if (cached := self.cached()) is not None:
             return cached
-        bin_edges, counts = _make_empty().values()
+        bin_edges, counts = _make_empty()
         for res in self.compute_async(layer):
             bin_edges, counts = res
         return bin_edges, counts
@@ -339,7 +339,7 @@ class Histogram(EventedModel):
             stacklevel=2,
         )
         cached = self.cached()
-        return cached[1] if cached is not None else _make_empty()['counts']
+        return cached[1] if cached is not None else _make_empty()[1]
 
     def reset(self) -> None:
         """Reset settings to defaults and drop cached results."""
