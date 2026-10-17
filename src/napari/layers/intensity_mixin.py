@@ -2,8 +2,6 @@ from typing import TYPE_CHECKING, Literal
 
 import numpy as np
 
-from napari.components.histogram import Histogram
-from napari.layers import Layer
 from napari.utils._dtype import normalize_dtype
 from napari.utils.colormaps import AVAILABLE_COLORMAPS, ensure_colormap
 from napari.utils.events import Event
@@ -13,11 +11,12 @@ from napari.utils.validators import _validate_increasing, validate_n_seq
 validate_2_tuple = validate_n_seq(2)
 
 if TYPE_CHECKING:
+    from napari.components.histogram import Histogram
     from napari.layers._scalar_field.scalar_field import ScalarFieldBase
     from napari.layers.surface import Surface
 
 
-class IntensityVisualizationMixin(Layer):
+class IntensityVisualizationMixin:
     """A mixin that adds gamma, colormap, and contrast limits logic to Layers.
 
     When used, this should come before the Layer in the inheritance, e.g.:
@@ -59,11 +58,43 @@ class IntensityVisualizationMixin(Layer):
 
         self._overlays.update({'colorbar': ColorBarOverlay()})
 
+        # imported lazily: napari.components imports napari.layers
+        from napari.components.histogram import Histogram
+
         self._histogram = Histogram()
+        self._histogram.events.enabled.connect(self._on_histogram_enabled)
+        self._histogram.events.stale.connect(self._on_histogram_stale)
+
+    def _on_histogram_enabled(self) -> None:
+        """Keep the histogram up to date (in the background) while enabled.
+
+        Layer events are connected lazily, which keeps layers free of
+        internal callbacks on their own emitters (see `test_no_callbacks`).
+        """
+        hist = self._histogram
+        connections = (
+            (self.events.data, hist._invalidate),
+            (self.events.contrast_limits_range, hist._invalidate),
+            (self.events.set_data, hist._on_slice_change),
+        )
+        if hist.enabled:
+            for emitter, callback in connections:
+                emitter.connect(callback)
+            if hist.cached() is None:
+                hist._request(self)
+        else:
+            for emitter, callback in connections:
+                emitter.disconnect(callback)
+            hist._stop()
+            # changes are not tracked while disabled, so drop the cache
+            hist._clear()
+
+    def _on_histogram_stale(self) -> None:
+        self._histogram._request(self)
 
     @property
-    def histogram(self) -> Histogram:
-        """Histogram model for this layer (settings only)."""
+    def histogram(self) -> 'Histogram':
+        """Histogram model for this layer (settings and cached results)."""
         return self._histogram
 
     def reset_contrast_limits(self: 'ScalarFieldBase | Surface', mode=None):

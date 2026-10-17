@@ -264,3 +264,273 @@ class TestMaterializationGuard:
         with pytest.warns(UserWarning, match='Skipping full-data histogram'):
             result = _get_full_data(FakeLayer())
         assert result is None
+
+
+@pytest.fixture
+def no_background_compute(monkeypatch):
+    """Keep cache tests deterministic: no worker thread is started."""
+    from napari.components.histogram import Histogram
+
+    monkeypatch.setattr(Histogram, '_request', lambda self, layer: None)
+
+
+@pytest.mark.usefixtures('no_background_compute')
+class TestCache:
+    """Results are cached per mode with linear counts."""
+
+    def _enabled_image(self):
+        layer = _image(np.random.default_rng(0).random((20, 20)))
+        layer.histogram.enabled = True
+        return layer
+
+    def test_log_scale_toggle_uses_cache(self, monkeypatch):
+        layer = self._enabled_image()
+        _, linear = layer.histogram.compute(layer)
+
+        def fail(*args, **kwargs):
+            raise AssertionError('should not recompute')
+
+        monkeypatch.setattr(
+            'napari.components.histogram.compute_histogram', fail
+        )
+        completed = []
+        layer.histogram.events.completed.connect(
+            lambda e: completed.append(e.counts)
+        )
+        layer.histogram.log_scale = True
+        np.testing.assert_allclose(completed[-1], np.log10(linear + 1))
+        layer.histogram.log_scale = False
+        np.testing.assert_allclose(completed[-1], linear)
+
+    def test_full_cache_survives_mode_round_trip(self):
+        layer = self._enabled_image()
+        layer.histogram.mode = 'full'
+        _, full = layer.histogram.compute(layer)
+        layer.histogram.mode = 'canvas'
+        layer.histogram.compute(layer)
+        layer.histogram.mode = 'full'
+        cached = layer.histogram.cached()
+        assert cached is not None
+        np.testing.assert_array_equal(cached[1], full)
+
+    def test_slice_change_only_drops_canvas(self):
+        layer = self._enabled_image()
+        layer.histogram.compute(layer)
+        layer.histogram.mode = 'full'
+        layer.histogram.compute(layer)
+        layer.events.set_data()
+        assert layer.histogram.cached() is not None
+        layer.histogram.mode = 'canvas'
+        assert layer.histogram.cached() is None
+
+    @pytest.mark.parametrize(
+        'change',
+        [
+            lambda layer: setattr(layer, 'data', layer.data * 2),
+            lambda layer: setattr(layer, 'contrast_limits_range', (0, 5)),
+            lambda layer: setattr(layer.histogram, 'bins', 16),
+        ],
+    )
+    def test_invalidation(self, change):
+        layer = self._enabled_image()
+        layer.histogram.compute(layer)
+        change(layer)
+        assert layer.histogram.cached() is None
+
+    def test_disable_drops_cache_and_disconnects(self):
+        layer = self._enabled_image()
+        layer.histogram.compute(layer)
+        layer.histogram.enabled = False
+        assert layer.histogram.cached() is None
+        assert len(layer.events.set_data.callbacks) == 0
+
+    def test_stale_only_when_enabled(self):
+        layer = _image(np.random.rand(10, 10))
+        stale = []
+        layer.histogram.events.stale.connect(lambda: stale.append(1))
+        layer.histogram.bins = 16
+        assert not stale
+        layer.histogram.enabled = True
+        layer.histogram.bins = 32
+        assert stale
+
+
+def test_compute_with_empty_generator(monkeypatch):
+    """A generator yielding nothing (failed first chunk) is not an error."""
+    monkeypatch.setattr(
+        'napari.components.histogram.compute_histogram',
+        lambda *a, **k: iter(()),
+    )
+    layer = _image(np.random.rand(10, 10))
+    bin_edges, counts = layer.histogram.compute(layer)
+    assert len(bin_edges) == 2
+    assert len(counts) == 1
+
+
+def test_histogram_model_deprecated():
+    from napari.components.histogram import Histogram, HistogramModel
+
+    layer = _image(np.random.rand(10, 10))
+    with pytest.warns(FutureWarning, match='HistogramModel is deprecated'):
+        model = HistogramModel(layer, bins=8)
+    assert isinstance(model, Histogram)
+    assert model.bins == 8
+    with pytest.warns(FutureWarning, match='counts is deprecated'):
+        assert len(model.counts) == 1
+
+
+@pytest.mark.usefixtures('no_background_compute')
+def test_log_toggle_mid_compute_rescales_partial():
+    """Toggling log during a progressive compute must not ask for a restart."""
+    layer = _image(np.random.rand(10, 10))
+    hist = layer.histogram
+    hist.enabled = True
+    hist.mode = 'full'
+    stale, updated = [], []
+    hist.events.stale.connect(lambda: stale.append(1))
+    hist.events.updated.connect(lambda e: updated.append(e.counts))
+
+    edges, linear = np.linspace(0, 1, 5), np.array([0.0, 9.0, 99.0, 999.0])
+    hist._publish_partial(edges, linear, 'full')
+    hist.log_scale = True
+
+    assert not stale
+    np.testing.assert_allclose(updated[-1], [0, 1, 2, 3])
+    hist._publish_result(edges, linear, 'full')
+    np.testing.assert_allclose(hist.cached()[1], [0, 1, 2, 3])
+
+
+class TestBackgroundCompute:
+    """The model computes in a daemon thread while enabled (no Qt needed)."""
+
+    def _wait(self, predicate, timeout=5.0):
+        import time
+
+        end = time.monotonic() + timeout
+        while time.monotonic() < end:
+            if predicate():
+                return
+            time.sleep(0.01)
+        raise AssertionError('timed out')
+
+    def test_enable_computes_in_background(self):
+        layer = _image(np.random.rand(20, 20))
+        completed = []
+        layer.histogram.events.completed.connect(
+            lambda e: completed.append(e.counts)
+        )
+        layer.histogram.enabled = True
+        self._wait(lambda: completed)
+        assert layer.histogram.cached() is not None
+        layer.histogram.enabled = False
+
+    def test_invalidation_drops_late_result(self):
+        layer = _image(np.random.rand(20, 20))
+        hist = layer.histogram
+        generation = hist._generation['canvas']
+        hist._clear()
+        edges, counts = np.linspace(0, 1, 3), np.ones(2)
+        assert not hist._publish_result(edges, counts, 'canvas', generation)
+        assert hist.cached() is None
+
+    def test_disable_stops_thread(self):
+        layer = _image(np.random.rand(20, 20))
+        layer.histogram.enabled = True
+        worker = layer.histogram._worker
+        self._wait(lambda: layer.histogram.cached() is not None)
+        layer.histogram.enabled = False
+        assert layer.histogram._worker is None
+        self._wait(lambda: not worker._thread.is_alive())
+
+
+def test_removing_layer_stops_histogram_worker(monkeypatch):
+    """A layer removed mid-compute must not keep reading chunks."""
+    import time
+
+    from napari.components import ViewerModel
+    from napari.utils import histogram as hist_utils
+
+    da = pytest.importorskip('dask.array')
+    load_chunk = hist_utils._load_chunk
+
+    def slow_load_chunk(data, flat_idx):
+        time.sleep(0.02)
+        return load_chunk(data, flat_idx)
+
+    monkeypatch.setattr(hist_utils, '_load_chunk', slow_load_chunk)
+    viewer = ViewerModel()
+    layer = viewer.add_image(da.random.random((100, 8, 8), chunks=(1, 8, 8)))
+    layer.histogram.mode = 'full'
+    layer.histogram.enabled = True
+    thread = layer.histogram._worker._thread
+
+    viewer.layers.remove(layer)
+    assert layer.histogram._worker is None
+    thread.join(timeout=5)
+    assert not thread.is_alive()
+    assert layer.histogram.cached() is None
+
+
+def test_compute_uses_requested_mode_not_current(monkeypatch):
+    """The mode a worker tags results with is the mode it computes."""
+    seen = []
+
+    def spy(layer, **kwargs):
+        seen.append(kwargs['mode'])
+        yield np.linspace(0, 1, 3), np.ones(2)
+
+    monkeypatch.setattr('napari.components.histogram.compute_histogram', spy)
+    layer = _image(np.random.rand(10, 10))
+    gen = layer.histogram._compute_async_no_events(layer, 'canvas')
+    layer.histogram.mode = 'full'  # changes before the body first runs
+    list(gen)
+    assert seen == ['canvas']
+
+
+class TestChunkFailure:
+    """A failed chunk read raises in sync compute; the worker logs it."""
+
+    @staticmethod
+    def _failing_layer(monkeypatch, fail_after):
+        from napari.utils import histogram as hist_utils
+
+        da = pytest.importorskip('dask.array')
+        load_chunk = hist_utils._load_chunk
+        loads = 0
+
+        def flaky_load_chunk(data, flat_idx):
+            nonlocal loads
+            loads += 1
+            if loads > fail_after:
+                raise OSError('remote read failed')
+            return load_chunk(data, flat_idx)
+
+        monkeypatch.setattr(hist_utils, '_load_chunk', flaky_load_chunk)
+        layer = _image(da.random.random((10, 8, 8), chunks=(1, 8, 8)))
+        layer.histogram.mode = 'full'
+        return layer
+
+    def test_sync_compute_raises_and_caches_nothing(self, monkeypatch):
+        layer = self._failing_layer(monkeypatch, fail_after=2)
+        with pytest.raises(OSError, match='remote read failed'):
+            layer.histogram.compute(layer)
+        assert layer.histogram.cached() is None
+
+    def test_worker_logs_and_keeps_partial_uncached(self, monkeypatch, caplog):
+        import time
+
+        layer = self._failing_layer(monkeypatch, fail_after=2)
+        layer.histogram.enabled = True
+        thread = layer.histogram._worker._thread
+        end = time.monotonic() + 5
+        while time.monotonic() < end and not any(
+            'Histogram compute failed' in r.message for r in caplog.records
+        ):
+            time.sleep(0.01)
+        assert any(
+            'Histogram compute failed' in r.message for r in caplog.records
+        )
+        assert 'full' in layer.histogram._partial
+        assert layer.histogram.cached() is None
+        layer.histogram.enabled = False
+        thread.join(timeout=5)

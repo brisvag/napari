@@ -99,12 +99,10 @@ class QContrastLimitsPopup(QtPopup):
         self,
         layers: list[Image | Surface],
         parent: Optional[QWidget] = None,
-        contrast_control=None,
     ) -> None:
         super().__init__(parent)
 
         self._layers = layers
-        self._contrast_control = contrast_control
         self._frame_base_height = 0
 
         self._layout = QVBoxLayout()
@@ -194,7 +192,7 @@ class QContrastLimitsPopup(QtPopup):
             # (_ensure_histogram_content) to avoid a PySide6 segfault when
             # creating native GL widgets during __init__.
             layer = self._layers[0]
-            self.histogram = QtHistogramWidget(layer, mirror=True)
+            self.histogram = QtHistogramWidget(layer)
             self._layout.addWidget(self.histogram)
             self.histogram_button = QtModePushButton(
                 layer,
@@ -243,6 +241,15 @@ class QContrastLimitsPopup(QtPopup):
             return
         super().keyPressEvent(event)
 
+    def closeEvent(self, event):
+        """Disconnect from the layer so closed popups stop receiving events."""
+        if len(self._layers) == 1:
+            self._layers[0].histogram.events.enabled.disconnect(
+                self._on_histogram_enabled_change
+            )
+            self.histogram.cleanup()
+        super().closeEvent(event)
+
     def _base_height(self) -> int:
         """Popup height without the histogram widget."""
         outer = self.layout().contentsMargins()
@@ -260,12 +267,6 @@ class QContrastLimitsPopup(QtPopup):
     def _enable_histogram(self, enabled: bool) -> None:
         if enabled:
             self.histogram._ensure_histogram_content()
-            if self._contrast_control is not None:
-                main_hist = getattr(self._contrast_control, 'histogram', None)
-                if main_hist is not None and len(main_hist.counts) > 1:
-                    self.histogram.bin_edges = main_hist.bin_edges
-                    self.histogram.counts = main_hist.counts
-                    self.histogram.update_histogram()
             self.histogram.show()
             # process events to ensure the size hint is up to date
             QApplication.processEvents()
@@ -437,7 +438,6 @@ class QtContrastLimitsControl(QtWidgetControlsBase):
         self.clim_popup = QContrastLimitsPopup(
             layers=self._layers,
             parent=self.parent(),
-            contrast_control=self,
         )
         if self.parent():
             self.clim_popup.move_to('top', min_length=650)
@@ -503,12 +503,8 @@ class QtContrastLimitsControl(QtWidgetControlsBase):
         self._enable_histogram(enabled)
 
     def _enable_histogram(self, enabled: bool) -> None:
-        if enabled:
-            self.histogram._schedule_histogram_compute()
-            self.histogram.show()
-        else:
-            self.histogram.hide()
-            self.histogram.cancel_histogram_compute()
+        # computing is driven by the model; this only shows or hides it
+        self.histogram.setVisible(enabled)
 
     def get_widget_controls(
         self,

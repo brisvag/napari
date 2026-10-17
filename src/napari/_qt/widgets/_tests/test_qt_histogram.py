@@ -248,3 +248,67 @@ def test_histogram_visual_update_bars_zero_range(qtbot):
     )
 
     widget.cleanup()
+
+
+def test_qt_histogram_widget_ignores_updates_after_cleanup(qtbot):
+    """Updates queued from the worker thread may land after cleanup."""
+    from types import SimpleNamespace
+
+    layer = Image(np.random.rand(10, 10))
+    widget = QtHistogramWidget(layer)
+    qtbot.addWidget(widget)
+    widget._ensure_histogram_content()
+    visual = widget.histogram_canvas.histogram_visual
+    calls = []
+    visual.set_data = lambda **kwargs: calls.append(kwargs)
+
+    widget.cleanup()
+    widget._on_model_histogram(
+        SimpleNamespace(bin_edges=np.linspace(0, 1, 3), counts=np.ones(2))
+    )
+    assert not calls
+
+
+def test_qt_histogram_widget_updates_on_main_thread(qtbot):
+    """Results published from the worker thread are rendered on the main one."""
+    import threading
+
+    layer = Image(np.random.rand(10, 10))
+    widget = QtHistogramWidget(layer)
+    qtbot.addWidget(widget)
+    threads = []
+    widget.update_histogram = lambda: threads.append(
+        threading.current_thread()
+    )
+
+    publisher = threading.Thread(
+        target=layer.histogram._publish_result,
+        args=(np.linspace(0, 1, 3), np.ones(2)),
+    )
+    publisher.start()
+    publisher.join()
+    qtbot.waitUntil(lambda: bool(threads), timeout=5000)
+    assert threads == [threading.main_thread()]
+    np.testing.assert_array_equal(widget.counts, [1, 1])
+    widget.cleanup()
+
+
+def test_contrast_limits_popup_disconnects_on_close(qtbot):
+    """Closed popups must stop reacting to the layer's histogram events."""
+    from napari._qt.layer_controls.widgets.qt_contrast_limits import (
+        QContrastLimitsPopup,
+    )
+
+    layer = Image(np.random.rand(10, 10))
+    events = layer.histogram.events
+    before = (len(events.enabled.callbacks), len(events.updated.callbacks))
+
+    popup = QContrastLimitsPopup(layer)
+    qtbot.addWidget(popup)
+    assert len(events.enabled.callbacks) > before[0]
+    assert len(events.updated.callbacks) > before[1]
+
+    popup.close()
+    assert (len(events.enabled.callbacks), len(events.updated.callbacks)) == (
+        before
+    )

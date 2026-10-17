@@ -196,11 +196,14 @@ class TestQtContrastLimitsControl:
             nonlocal completed
             completed = True
 
-        control.histogram._ensure_histogram_content()
-        control.histogram._schedule_histogram_compute()
         layer.histogram.events.completed.connect(complete)
+        layer.histogram.enabled = True
 
         qtbot.waitUntil(lambda: completed, timeout=10000)
+        # results reach the widget through a queued main-thread call
+        qtbot.waitUntil(
+            lambda: len(control.histogram.counts) == 256, timeout=5000
+        )
         assert len(control.histogram.bin_edges) == 257
         assert len(control.histogram.counts) == 256
 
@@ -235,7 +238,7 @@ class TestQtContrastLimitsControl:
         qt_wrap.add_control(control)
 
         control.histogram._ensure_histogram_content()
-        control.histogram._schedule_histogram_compute()
+        layer.histogram.enabled = True
         QThreadPool.globalInstance().waitForDone(2000)
         control.disconnect_widget_controls()
         # should not hang or error after the worker is aborted
@@ -484,3 +487,71 @@ class TestQtMultiscaleLevelControl:
 
         assert image.locked_data_level == 0
         assert control.level_combobox.currentIndex() == 1
+
+
+def test_log_toggle_does_not_restart_slow_full_compute(
+    qt_wrap: QtWrap, qtbot: QtBot, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Simulates a remote store: each chunk is slow to load."""
+    import time
+
+    from napari.components.histogram import Histogram
+    from napari.utils import histogram as hist_utils
+
+    daskarray = pytest.importorskip('dask.array')
+    load_chunk = hist_utils._load_chunk
+
+    def slow_load_chunk(data, flat_idx):
+        time.sleep(0.02)
+        return load_chunk(data, flat_idx)
+
+    monkeypatch.setattr(hist_utils, '_load_chunk', slow_load_chunk)
+    starts = 0
+    compute = Histogram._compute_async_no_events
+
+    def counting_compute(self, layer, mode=None):
+        nonlocal starts
+        starts += 1
+        yield from compute(self, layer, mode)
+
+    monkeypatch.setattr(
+        Histogram, '_compute_async_no_events', counting_compute
+    )
+
+    layer = Image(
+        daskarray.random.random((20, 10, 10), chunks=(1, 10, 10)),
+        contrast_limits=(0, 1),
+    )
+    control = QtContrastLimitsControl([layer])
+    qt_wrap.add_control(control)
+    layer.histogram.mode = 'full'
+    layer.histogram.enabled = True
+
+    qtbot.waitUntil(lambda: bool(layer.histogram._partial), timeout=5000)
+    layer.histogram.log_scale = True
+    qtbot.waitUntil(
+        lambda: layer.histogram.cached() is not None, timeout=10000
+    )
+    assert starts == 1
+    layer.histogram.log_scale = False
+    assert starts == 1
+
+    control.disconnect_widget_controls()
+
+
+def test_dynamic_contrast_limits_popup_disconnects_on_close(
+    qtbot: QtBot,
+) -> None:
+    """Closed popups must stop reacting to the layer's histogram events."""
+    layer = Image(np.random.rand(10, 10))
+    events = layer.histogram.events
+    before = (len(events.enabled.callbacks), len(events.updated.callbacks))
+
+    popup = QContrastLimitsPopup([layer])
+    qtbot.add_widget(popup)
+    assert len(events.enabled.callbacks) > before[0]
+
+    popup.close()
+    assert (len(events.enabled.callbacks), len(events.updated.callbacks)) == (
+        before
+    )

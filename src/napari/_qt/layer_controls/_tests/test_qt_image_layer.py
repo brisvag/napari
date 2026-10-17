@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 from qtpy.QtCore import Qt
 
 from napari._qt.layer_controls.qt_image_controls import QtImageControls
@@ -266,3 +267,52 @@ def test_histogram_popup_and_inline_coexistence(qtbot, make_napari_viewer):
     qtbot.mouseClick(button, Qt.MouseButton.LeftButton)
     assert control.histogram.isHidden()
     assert not button.isChecked()
+
+
+def test_window_close_stops_histogram_worker(
+    qtbot, make_napari_viewer, monkeypatch
+):
+    """Closing the window (without removing layers) must stop the worker.
+
+    Otherwise the thread outlives its QObject and crashes at interpreter
+    shutdown ("wrapped C/C++ object ... has been deleted").
+    """
+    import threading
+    import time
+
+    from napari.utils import histogram as hist_utils
+
+    da = pytest.importorskip('dask.array')
+    load_chunk = hist_utils._load_chunk
+
+    def slow_load_chunk(data, flat_idx):
+        time.sleep(0.02)
+        return load_chunk(data, flat_idx)
+
+    monkeypatch.setattr(hist_utils, '_load_chunk', slow_load_chunk)
+
+    def workers():
+        # only threads started by this test; other tests may leak theirs
+        return {
+            t
+            for t in threading.enumerate()
+            if t.name == 'napari-histogram' and t.is_alive()
+        } - preexisting
+
+    preexisting: set[threading.Thread] = set()
+    preexisting = workers()
+    viewer = make_napari_viewer()
+    layer = viewer.add_image(da.random.random((100, 8, 8), chunks=(1, 8, 8)))
+    layer.histogram.mode = 'full'
+    layer.histogram.enabled = True
+    qtbot.waitUntil(lambda: bool(layer.histogram._partial), timeout=5000)
+    assert workers()
+
+    viewer.window._qt_window._stop_worker_threads()
+    # stopping does not block; the thread exits after its current chunk
+    qtbot.waitUntil(lambda: not workers(), timeout=5000)
+
+    # the window is gone, so later layer changes must not restart work
+    assert not layer.histogram.enabled
+    layer.events.data()
+    assert layer.histogram._worker is None

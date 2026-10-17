@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 import math
 import warnings
 from collections.abc import Generator, Sequence
@@ -11,8 +10,6 @@ from typing import Any, Literal
 import numpy as np
 
 from napari.utils._dask_utils import _is_dask_data
-
-logger = logging.getLogger('napari.components.histogram')
 
 # Maximum number of elements to materialize into a numpy array when
 # the data is not chunked (e.g. h5py datasets).  Used as a safety
@@ -39,15 +36,13 @@ def compute_histogram(
     data = _get_data(layer, mode)
 
     if data is None or data.size == 0:
-        empty = _make_empty()
-        yield empty['bin_edges'], empty['counts']
+        yield _make_empty()
         return
 
     if getattr(layer, 'rgb', False):
         data = _sample_rgb_and_luminance(data, max_samples)
         if data.size == 0:
-            empty = _make_empty()
-            yield empty['bin_edges'], empty['counts']
+            yield _make_empty()
             return
 
     if mode == 'full' and _has_chunks(data):
@@ -66,11 +61,9 @@ def compute_histogram(
         yield bin_edges, counts
 
 
-def _make_empty() -> dict[str, np.ndarray]:
-    return {
-        'bin_edges': np.array([0.0, 1.0]),
-        'counts': np.array([0.0]),
-    }
+def _make_empty() -> tuple[np.ndarray, np.ndarray]:
+    """Return ``(bin_edges, counts)`` of an empty single-bin histogram."""
+    return np.array([0.0, 1.0]), np.array([0.0])
 
 
 def _calc_histogram(
@@ -362,16 +355,10 @@ def _compute_chunked_progressive(
 
     running_counts = np.zeros(bin_count, dtype=np.float64)
     for ci in order:
-        # Chunk load failure (e.g. remote zarr read error) is
-        # non-fatal. Stop the generator instead of letting the
-        # exception propagate through the GeneratorWorker's Qt
-        # signal/slot machinery, which causes qFatal/abort on
-        # PyQt6.
-        try:
-            block = _load_chunk(data, ci)
-        except Exception:
-            logger.warning('Histogram chunk load failed', exc_info=True)
-            return
+        # Chunk load failures (e.g. remote zarr read errors) propagate:
+        # the caller decides whether they matter (the background worker
+        # ignores them once stopped, e.g. at interpreter shutdown).
+        block = _load_chunk(data, ci)
         chunk_counts, _ = np.histogram(
             block,
             bins=bin_count,
