@@ -24,7 +24,7 @@ from napari.layers import (
     Vectors,
 )
 from napari.settings import get_settings
-from napari.utils.theme import Theme, get_theme
+from napari.utils.theme import get_theme
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -163,17 +163,12 @@ class QtLayerControlsContainer(QStackedWidget):
                 if canvas is not None:
                     yield canvas
 
-    def _on_viewer_theme_changed(
-        self, event: Event | None = None, theme: Theme | None = None
-    ) -> None:
+    def _on_viewer_theme_changed(self, event: Event) -> None:
         """Update widgets that respond to theme in a way that qss cannot handle.
 
         Currently, only updates histogram colors.
         """
-        if event is None:
-            assert theme is not None
-        elif theme is None:
-            theme = get_theme(event.value)
+        theme = get_theme(event.value)
         for canvas in self._iter_histogram_canvases():
             canvas._on_theme_change(theme)
 
