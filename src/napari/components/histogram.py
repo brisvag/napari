@@ -85,7 +85,9 @@ class _HistogramWorker:
         generation = model._generation[mode]
         last = None
         try:
-            for bin_edges, counts in model._compute_async_no_events(layer):
+            for bin_edges, counts in model._compute_async_no_events(
+                layer, mode
+            ):
                 last = (bin_edges, counts)
                 # a pending request (e.g. new mode or bins) supersedes this
                 if self._terminate or self._wake.is_set():
@@ -192,18 +194,23 @@ class Histogram(EventedModel):
         return bin_edges, counts
 
     def _compute_async_no_events(
-        self, layer: IntensityVisualizationMixin
+        self,
+        layer: IntensityVisualizationMixin,
+        mode: Literal['canvas', 'full'] | None = None,
     ) -> Generator[tuple[np.ndarray, np.ndarray]]:
         """Non-evented generator yielding *linear* counts, for use in threads.
 
         Responsibility to fire events in the main thread lies on the caller,
-        via `_publish_partial` and `_publish_result`.
+        via `_publish_partial` and `_publish_result`. ``mode`` defaults to
+        the current one; the worker passes the mode it tags results with,
+        since a generator body only runs (and reads settings) on first use.
         """
+        mode = mode or self.mode
         yield from compute_histogram(
             layer,
             bin_count=self.bins,
             max_samples=self.max_samples,
-            mode=self.mode,
+            mode=mode,
             log_scale=False,
         )
 

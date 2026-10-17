@@ -469,3 +469,19 @@ def test_removing_layer_stops_histogram_worker(monkeypatch):
     thread.join(timeout=5)
     assert not thread.is_alive()
     assert layer.histogram.cached() is None
+
+
+def test_compute_uses_requested_mode_not_current(monkeypatch):
+    """The mode a worker tags results with is the mode it computes."""
+    seen = []
+
+    def spy(layer, **kwargs):
+        seen.append(kwargs['mode'])
+        yield np.linspace(0, 1, 3), np.ones(2)
+
+    monkeypatch.setattr('napari.components.histogram.compute_histogram', spy)
+    layer = _image(np.random.rand(10, 10))
+    gen = layer.histogram._compute_async_no_events(layer, 'canvas')
+    layer.histogram.mode = 'full'  # changes before the body first runs
+    list(gen)
+    assert seen == ['canvas']

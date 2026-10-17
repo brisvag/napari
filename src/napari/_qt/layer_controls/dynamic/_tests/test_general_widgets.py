@@ -509,10 +509,10 @@ def test_log_toggle_does_not_restart_slow_full_compute(
     starts = 0
     compute = Histogram._compute_async_no_events
 
-    def counting_compute(self, layer):
+    def counting_compute(self, layer, mode=None):
         nonlocal starts
         starts += 1
-        yield from compute(self, layer)
+        yield from compute(self, layer, mode)
 
     monkeypatch.setattr(
         Histogram, '_compute_async_no_events', counting_compute
