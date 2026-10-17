@@ -99,12 +99,10 @@ class QContrastLimitsPopup(QtPopup):
         self,
         layers: list[Image | Surface],
         parent: Optional[QWidget] = None,
-        contrast_control=None,
     ) -> None:
         super().__init__(parent)
 
         self._layers = layers
-        self._contrast_control = contrast_control
         self._frame_base_height = 0
 
         self._layout = QVBoxLayout()
@@ -440,7 +438,6 @@ class QtContrastLimitsControl(QtWidgetControlsBase):
         self.clim_popup = QContrastLimitsPopup(
             layers=self._layers,
             parent=self.parent(),
-            contrast_control=self,
         )
         if self.parent():
             self.clim_popup.move_to('top', min_length=650)
