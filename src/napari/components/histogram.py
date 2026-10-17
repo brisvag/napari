@@ -32,7 +32,9 @@ class _HistogramWorker:
     """Recompute a layer's histogram in a background thread on request.
 
     Pure Python (no Qt), so it works headless and cannot outlive a deleted
-    QObject. Results are published through the model's events *from the
+    QObject. If a compute fails (e.g. a remote chunk read), it logs a
+    warning and keeps the last partial result visible but uncached, so the
+    next invalidation retries. Results are published through the model's events *from the
     worker thread*; Qt listeners must use ``ensure_main_thread``. The thread
     is a daemon so a slow remote compute never blocks interpreter exit, and
     it exits on its own once the model is garbage collected.
@@ -185,6 +187,12 @@ class Histogram(EventedModel):
         Returns the cached result if still valid. Otherwise emits updated
         (once per chunk) and completed on the calling thread, so listeners
         (e.g. Qt controls) update accordingly.
+
+        Raises
+        ------
+        Exception
+            Whatever loading the data raises (e.g. a failed remote chunk
+            read); nothing is cached in that case.
         """
         if (cached := self.cached()) is not None:
             return cached

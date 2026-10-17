@@ -485,3 +485,52 @@ def test_compute_uses_requested_mode_not_current(monkeypatch):
     layer.histogram.mode = 'full'  # changes before the body first runs
     list(gen)
     assert seen == ['canvas']
+
+
+class TestChunkFailure:
+    """A failed chunk read raises from sync compute, is logged by the worker."""
+
+    @staticmethod
+    def _failing_layer(monkeypatch, fail_after):
+        from napari.utils import histogram as hist_utils
+
+        da = pytest.importorskip('dask.array')
+        load_chunk = hist_utils._load_chunk
+        loads = 0
+
+        def flaky_load_chunk(data, flat_idx):
+            nonlocal loads
+            loads += 1
+            if loads > fail_after:
+                raise OSError('remote read failed')
+            return load_chunk(data, flat_idx)
+
+        monkeypatch.setattr(hist_utils, '_load_chunk', flaky_load_chunk)
+        layer = _image(da.random.random((10, 8, 8), chunks=(1, 8, 8)))
+        layer.histogram.mode = 'full'
+        return layer
+
+    def test_sync_compute_raises_and_caches_nothing(self, monkeypatch):
+        layer = self._failing_layer(monkeypatch, fail_after=2)
+        with pytest.raises(OSError, match='remote read failed'):
+            layer.histogram.compute(layer)
+        assert layer.histogram.cached() is None
+
+    def test_worker_logs_and_keeps_partial_uncached(self, monkeypatch, caplog):
+        import time
+
+        layer = self._failing_layer(monkeypatch, fail_after=2)
+        layer.histogram.enabled = True
+        thread = layer.histogram._worker._thread
+        end = time.monotonic() + 5
+        while time.monotonic() < end and not any(
+            'Histogram compute failed' in r.message for r in caplog.records
+        ):
+            time.sleep(0.01)
+        assert any(
+            'Histogram compute failed' in r.message for r in caplog.records
+        )
+        assert 'full' in layer.histogram._partial
+        assert layer.histogram.cached() is None
+        layer.histogram.enabled = False
+        thread.join(timeout=5)
