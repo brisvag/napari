@@ -488,7 +488,7 @@ def test_compute_uses_requested_mode_not_current(monkeypatch):
 
 
 class TestChunkFailure:
-    """A failed chunk read raises from sync compute, is logged by the worker."""
+    """A failed chunk read raises in sync compute; the worker logs it."""
 
     @staticmethod
     def _failing_layer(monkeypatch, fail_after):

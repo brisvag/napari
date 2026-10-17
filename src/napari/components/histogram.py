@@ -32,12 +32,14 @@ class _HistogramWorker:
     """Recompute a layer's histogram in a background thread on request.
 
     Pure Python (no Qt), so it works headless and cannot outlive a deleted
-    QObject. If a compute fails (e.g. a remote chunk read), it logs a
-    warning and keeps the last partial result visible but uncached, so the
-    next invalidation retries. Results are published through the model's events *from the
+    QObject. Results are published through the model's events *from the
     worker thread*; Qt listeners must use ``ensure_main_thread``. The thread
     is a daemon so a slow remote compute never blocks interpreter exit, and
     it exits on its own once the model is garbage collected.
+
+    If a compute fails (e.g. a remote chunk read), it logs a warning and
+    keeps the last partial result visible but uncached, so the next
+    invalidation retries.
     """
 
     def __init__(
@@ -307,7 +309,7 @@ class Histogram(EventedModel):
             )
 
     def _clear(self, mode: str | None = None) -> None:
-        """Drop results for ``mode`` (or all modes) and cancel their compute."""
+        """Drop results for ``mode`` (or all) and cancel their compute."""
         with _LOCK:
             for m in self._generation if mode is None else (mode,):
                 self._generation[m] += 1
@@ -351,7 +353,8 @@ class HistogramModel(Histogram):
     def __init__(self, layer: Any = None, **data: Any) -> None:
         warnings.warn(
             'HistogramModel is deprecated since 0.10.0 and will be removed '
-            'no earlier than 2027-Q1. Use `napari.components.histogram.Histogram`; '
+            'no earlier than 2027-Q1. Use '
+            '`napari.components.histogram.Histogram`; '
             'the layer is now passed to `compute(layer)` instead.',
             FutureWarning,
             stacklevel=2,
