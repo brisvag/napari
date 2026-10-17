@@ -537,3 +537,21 @@ def test_log_toggle_does_not_restart_slow_full_compute(
     assert starts == 1
 
     control.disconnect_widget_controls()
+
+
+def test_dynamic_contrast_limits_popup_disconnects_on_close(
+    qtbot: QtBot,
+) -> None:
+    """Closed popups must stop reacting to the layer's histogram events."""
+    layer = Image(np.random.rand(10, 10))
+    events = layer.histogram.events
+    before = (len(events.enabled.callbacks), len(events.updated.callbacks))
+
+    popup = QContrastLimitsPopup([layer])
+    qtbot.add_widget(popup)
+    assert len(events.enabled.callbacks) > before[0]
+
+    popup.close()
+    assert (len(events.enabled.callbacks), len(events.updated.callbacks)) == (
+        before
+    )
