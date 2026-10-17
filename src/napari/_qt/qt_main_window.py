@@ -635,10 +635,17 @@ class _QtMainWindow(QMainWindow):
         self.status_thread.wait()
         self._qt_viewer.dims.stop()
         # closing the window does not remove layers, so stop their
-        # histogram threads before Qt and the interpreter tear down
-        for layer in self._qt_viewer.viewer.layers:
-            if (histogram := getattr(layer, 'histogram', None)) is not None:
-                histogram._stop()
+        # histogram threads before Qt and the interpreter tear down; wait
+        # briefly (shared deadline) so in-flight chunk reads finish cleanly
+        threads = [
+            thread
+            for layer in self._qt_viewer.viewer.layers
+            if (histogram := getattr(layer, 'histogram', None)) is not None
+            and (thread := histogram._stop()) is not None
+        ]
+        deadline = time.monotonic() + 2.0
+        for thread in threads:
+            thread.join(max(0.0, deadline - time.monotonic()))
 
     def restart(self):
         """Restart the napari application in a detached process."""

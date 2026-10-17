@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 import math
 import warnings
 from collections.abc import Generator, Sequence
@@ -11,8 +10,6 @@ from typing import Any, Literal
 import numpy as np
 
 from napari.utils._dask_utils import _is_dask_data
-
-logger = logging.getLogger('napari.components.histogram')
 
 # Maximum number of elements to materialize into a numpy array when
 # the data is not chunked (e.g. h5py datasets).  Used as a safety
@@ -362,16 +359,10 @@ def _compute_chunked_progressive(
 
     running_counts = np.zeros(bin_count, dtype=np.float64)
     for ci in order:
-        # Chunk load failure (e.g. remote zarr read error) is
-        # non-fatal. Stop the generator instead of letting the
-        # exception propagate through the GeneratorWorker's Qt
-        # signal/slot machinery, which causes qFatal/abort on
-        # PyQt6.
-        try:
-            block = _load_chunk(data, ci)
-        except Exception:
-            logger.warning('Histogram chunk load failed', exc_info=True)
-            return
+        # Chunk load failures (e.g. remote zarr read errors) propagate:
+        # the caller decides whether they matter (the background worker
+        # ignores them once stopped, e.g. at interpreter shutdown).
+        block = _load_chunk(data, ci)
         chunk_counts, _ = np.histogram(
             block,
             bins=bin_count,

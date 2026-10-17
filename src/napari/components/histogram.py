@@ -56,10 +56,16 @@ class _HistogramWorker:
             )
             self._thread.start()
 
-    def stop(self) -> None:
-        """Ask the thread to exit; does not block on an in-flight chunk."""
+    def stop(self) -> threading.Thread | None:
+        """Ask the thread to exit after its current chunk; does not block.
+
+        Returns the thread so callers can wait for it, e.g. at shutdown,
+        where an in-flight read must finish before Python tears down the
+        I/O thread pools it relies on.
+        """
         self._terminate = True
         self._wake.set()
+        return self._thread
 
     def _run(self) -> None:
         while not self._terminate:
@@ -89,7 +95,9 @@ class _HistogramWorker:
                 ):
                     return
         except Exception:
-            logger.warning('Histogram compute failed', exc_info=True)
+            # once stopped (e.g. shutdown), failures are expected noise
+            if not self._terminate:
+                logger.warning('Histogram compute failed', exc_info=True)
             return
         if last is not None and not self._terminate:
             model._publish_result(*last, mode, generation)
@@ -251,11 +259,10 @@ class Histogram(EventedModel):
             self._worker = _HistogramWorker(self, layer)
         self._worker.request()
 
-    def _stop(self) -> None:
-        """Stop the background worker, e.g. before the window closes."""
-        if self._worker is not None:
-            self._worker.stop()
-            self._worker = None
+    def _stop(self) -> threading.Thread | None:
+        """Stop the background worker; returns its thread to wait on."""
+        worker, self._worker = self._worker, None
+        return worker.stop() if worker is not None else None
 
     def _scale(self, counts: np.ndarray) -> np.ndarray:
         if self.log_scale:
