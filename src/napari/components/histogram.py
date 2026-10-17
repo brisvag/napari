@@ -331,7 +331,7 @@ class Histogram(EventedModel):
         """Deprecated: cached counts for the current mode."""
         warnings.warn(
             'Histogram.counts is deprecated since 0.10.0 and will be removed '
-            'no earlier than 2026-Q1. Use `layer.histogram.compute(layer)` '
+            'no earlier than 2027-Q1. Use `layer.histogram.compute(layer)` '
             'or listen to `layer.histogram.events.completed` instead.',
             FutureWarning,
             stacklevel=2,
@@ -351,7 +351,7 @@ class HistogramModel(Histogram):
     def __init__(self, layer: Any = None, **data: Any) -> None:
         warnings.warn(
             'HistogramModel is deprecated since 0.10.0 and will be removed '
-            'no earlier than 2026-Q1. Use `napari.components.histogram.Histogram`; '
+            'no earlier than 2027-Q1. Use `napari.components.histogram.Histogram`; '
             'the layer is now passed to `compute(layer)` instead.',
             FutureWarning,
             stacklevel=2,
