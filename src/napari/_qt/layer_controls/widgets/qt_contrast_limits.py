@@ -183,7 +183,7 @@ class QContrastLimitsPopup(QtPopup):
         # Histogram canvas construction is lazy
         # (_ensure_histogram_content) to avoid a PySide6 segfault when
         # creating native GL widgets during __init__.
-        self.histogram = QtHistogramWidget(self._layer, mirror=True)
+        self.histogram = QtHistogramWidget(self._layer)
         self._layout.addWidget(self.histogram)
         self.histogram_button = QtModePushButton(
             self._layer,
@@ -244,9 +244,6 @@ class QContrastLimitsPopup(QtPopup):
     def _enable_histogram(self, enabled: bool) -> None:
         if enabled:
             self.histogram._ensure_histogram_content()
-            if (cached := self._layer.histogram.cached()) is not None:
-                self.histogram.bin_edges, self.histogram.counts = cached
-                self.histogram.update_histogram()
             self.histogram.show()
             # process events to ensure the size hint is up to date
             QApplication.processEvents()
@@ -461,12 +458,8 @@ class QtContrastLimitsControl(QtWidgetControlsBase):
         self._enable_histogram(enabled)
 
     def _enable_histogram(self, enabled: bool) -> None:
-        if enabled:
-            self.histogram._schedule_histogram_compute()
-            self.histogram.show()
-        else:
-            self.histogram.hide()
-            self.histogram.cancel_histogram_compute()
+        # computing is driven by the model; this only shows or hides it
+        self.histogram.setVisible(enabled)
 
     def get_widget_controls(
         self,

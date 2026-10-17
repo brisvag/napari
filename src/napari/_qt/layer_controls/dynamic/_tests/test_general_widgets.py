@@ -200,6 +200,10 @@ class TestQtContrastLimitsControl:
         layer.histogram.enabled = True
 
         qtbot.waitUntil(lambda: completed, timeout=10000)
+        # results reach the widget through a queued main-thread call
+        qtbot.waitUntil(
+            lambda: len(control.histogram.counts) == 256, timeout=5000
+        )
         assert len(control.histogram.bin_edges) == 257
         assert len(control.histogram.counts) == 256
 

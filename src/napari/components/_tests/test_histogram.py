@@ -266,6 +266,15 @@ class TestMaterializationGuard:
         assert result is None
 
 
+@pytest.fixture
+def no_background_compute(monkeypatch):
+    """Keep cache tests deterministic: no worker thread is started."""
+    from napari.components.histogram import Histogram
+
+    monkeypatch.setattr(Histogram, '_request', lambda self, layer: None)
+
+
+@pytest.mark.usefixtures('no_background_compute')
 class TestCache:
     """Results are cached per mode with linear counts."""
 
@@ -370,6 +379,7 @@ def test_histogram_model_deprecated():
         assert len(model.counts) == 1
 
 
+@pytest.mark.usefixtures('no_background_compute')
 def test_log_toggle_mid_compute_rescales_partial():
     """Toggling log during a progressive compute must not ask for a restart."""
     layer = _image(np.random.rand(10, 10))
@@ -388,3 +398,46 @@ def test_log_toggle_mid_compute_rescales_partial():
     np.testing.assert_allclose(updated[-1], [0, 1, 2, 3])
     hist._publish_result(edges, linear, 'full')
     np.testing.assert_allclose(hist.cached()[1], [0, 1, 2, 3])
+
+
+class TestBackgroundCompute:
+    """The model computes in a daemon thread while enabled (no Qt needed)."""
+
+    def _wait(self, predicate, timeout=5.0):
+        import time
+
+        end = time.monotonic() + timeout
+        while time.monotonic() < end:
+            if predicate():
+                return
+            time.sleep(0.01)
+        raise AssertionError('timed out')
+
+    def test_enable_computes_in_background(self):
+        layer = _image(np.random.rand(20, 20))
+        completed = []
+        layer.histogram.events.completed.connect(
+            lambda e: completed.append(e.counts)
+        )
+        layer.histogram.enabled = True
+        self._wait(lambda: completed)
+        assert layer.histogram.cached() is not None
+        layer.histogram.enabled = False
+
+    def test_invalidation_drops_late_result(self):
+        layer = _image(np.random.rand(20, 20))
+        hist = layer.histogram
+        generation = hist._generation['canvas']
+        hist._clear()
+        edges, counts = np.linspace(0, 1, 3), np.ones(2)
+        assert not hist._publish_result(edges, counts, 'canvas', generation)
+        assert hist.cached() is None
+
+    def test_disable_stops_thread(self):
+        layer = _image(np.random.rand(20, 20))
+        layer.histogram.enabled = True
+        worker = layer.histogram._worker
+        self._wait(lambda: layer.histogram.cached() is not None)
+        layer.histogram.enabled = False
+        assert layer.histogram._worker is None
+        self._wait(lambda: not worker._thread.is_alive())

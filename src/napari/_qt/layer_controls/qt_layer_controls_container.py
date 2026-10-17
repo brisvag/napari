@@ -149,15 +149,6 @@ class QtLayerControlsContainer(QStackedWidget):
                 if hist is not None:
                     yield hist
 
-    def _stop_histogram_workers(self) -> None:
-        """Stop histogram compute threads before the window is torn down.
-
-        Closing the window does not remove layers, so controls are never
-        disconnected; without this, workers outlive their QObjects.
-        """
-        for hist in self._iter_histogram_widgets():
-            hist._stop_histogram_worker()
-
     def _on_viewer_theme_changed(self, event: Event) -> None:
         """Update widgets that respond to theme in a way that qss cannot handle.
 

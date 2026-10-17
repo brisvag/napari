@@ -296,7 +296,7 @@ def test_window_close_stops_histogram_worker(
         return {
             t
             for t in threading.enumerate()
-            if t.name.endswith('(_run)') and t.is_alive()
+            if t.name == 'napari-histogram' and t.is_alive()
         } - preexisting
 
     preexisting: set[threading.Thread] = set()
@@ -309,4 +309,5 @@ def test_window_close_stops_histogram_worker(
     assert workers()
 
     viewer.window._qt_window._stop_worker_threads()
-    assert not workers()
+    # stopping does not block; the thread exits after its current chunk
+    qtbot.waitUntil(lambda: not workers(), timeout=5000)

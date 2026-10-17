@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import logging
+import threading
 import warnings
+import weakref
 from typing import TYPE_CHECKING, Any, Literal
 
 import numpy as np
@@ -18,6 +21,78 @@ if TYPE_CHECKING:
     from collections.abc import Generator
 
     from napari.layers.intensity_mixin import IntensityVisualizationMixin
+
+logger = logging.getLogger(__name__)
+# guards cache writes from the worker thread against invalidation on the
+# main thread; module-level so the model itself stays copyable
+_LOCK = threading.Lock()
+
+
+class _HistogramWorker:
+    """Recompute a layer's histogram in a background thread on request.
+
+    Pure Python (no Qt), so it works headless and cannot outlive a deleted
+    QObject. Results are published through the model's events *from the
+    worker thread*; Qt listeners must use ``ensure_main_thread``. The thread
+    is a daemon so a slow remote compute never blocks interpreter exit, and
+    it exits on its own once the model is garbage collected.
+    """
+
+    def __init__(
+        self, model: Histogram, layer: IntensityVisualizationMixin
+    ) -> None:
+        self._model_ref = weakref.ref(model)
+        self._layer_ref = weakref.ref(layer)
+        self._wake = threading.Event()
+        self._terminate = False
+        self._thread: threading.Thread | None = None
+
+    def request(self) -> None:
+        self._wake.set()
+        if self._thread is None or not self._thread.is_alive():
+            self._terminate = False
+            self._thread = threading.Thread(
+                target=self._run, name='napari-histogram', daemon=True
+            )
+            self._thread.start()
+
+    def stop(self) -> None:
+        """Ask the thread to exit; does not block on an in-flight chunk."""
+        self._terminate = True
+        self._wake.set()
+
+    def _run(self) -> None:
+        while not self._terminate:
+            if not self._wake.wait(timeout=1.0):
+                if self._model_ref() is None:
+                    return
+                continue
+            self._wake.clear()
+            if not self._terminate:
+                self._compute_once()
+
+    def _compute_once(self) -> None:
+        model, layer = self._model_ref(), self._layer_ref()
+        if model is None or layer is None:
+            return
+        mode = model.mode
+        generation = model._generation[mode]
+        last = None
+        try:
+            for bin_edges, counts in model._compute_async_no_events(layer):
+                last = (bin_edges, counts)
+                # a pending request (e.g. new mode or bins) supersedes this
+                if self._terminate or self._wake.is_set():
+                    return
+                if not model._publish_partial(
+                    bin_edges, counts, mode, generation
+                ):
+                    return
+        except Exception:
+            logger.warning('Histogram compute failed', exc_info=True)
+            return
+        if last is not None and not self._terminate:
+            model._publish_result(*last, mode, generation)
 
 
 class Histogram(EventedModel):
@@ -55,6 +130,11 @@ class Histogram(EventedModel):
     _partial: dict[str, tuple[np.ndarray, np.ndarray]] = PrivateAttr(
         default_factory=dict
     )
+    # mode -> generation; bumped on invalidation so late results are dropped
+    _generation: dict[str, int] = PrivateAttr(
+        default_factory=lambda: {'canvas': 0, 'full': 0}
+    )
+    _worker: _HistogramWorker | None = PrivateAttr(default=None)
 
     def __init__(self, **data: Any) -> None:
         super().__init__(**data)
@@ -124,27 +204,58 @@ class Histogram(EventedModel):
         bin_edges: np.ndarray,
         counts: np.ndarray,
         mode: str | None = None,
-    ) -> None:
-        """Emit an intermediate result (linear counts in, scaled out)."""
+        generation: int | None = None,
+    ) -> bool:
+        """Store and emit an intermediate result (linear counts in).
+
+        Returns False if ``generation`` is outdated, i.e. the compute that
+        produced it should stop.
+        """
         mode = mode or self.mode
-        self._partial[mode] = (bin_edges, counts)
-        if mode != self.mode:
-            return
-        self.events.updated(bin_edges=bin_edges, counts=self._scale(counts))
+        with _LOCK:
+            if generation is not None and generation != self._generation[mode]:
+                return False
+            self._partial[mode] = (bin_edges, counts)
+        if mode == self.mode:
+            self.events.updated(
+                bin_edges=bin_edges, counts=self._scale(counts)
+            )
+        return True
 
     def _publish_result(
         self,
         bin_edges: np.ndarray,
         counts: np.ndarray,
         mode: str | None = None,
-    ) -> None:
-        """Cache a final result for `mode` and emit it if it is current."""
+        generation: int | None = None,
+    ) -> bool:
+        """Cache a final result for ``mode`` and emit it if it is current."""
         mode = mode or self.mode
-        self._cache[mode] = (bin_edges, counts)
-        self._partial.pop(mode, None)
-        if mode != self.mode:
-            return
-        self.events.completed(bin_edges=bin_edges, counts=self._scale(counts))
+        with _LOCK:
+            if generation is not None and generation != self._generation[mode]:
+                return False
+            self._cache[mode] = (bin_edges, counts)
+            self._partial.pop(mode, None)
+        if mode == self.mode:
+            self.events.completed(
+                bin_edges=bin_edges, counts=self._scale(counts)
+            )
+        return True
+
+    def _request(self, layer: IntensityVisualizationMixin) -> None:
+        """Recompute the current mode in the background.
+
+        A pending request aborts the compute in flight at its next chunk.
+        """
+        if self._worker is None:
+            self._worker = _HistogramWorker(self, layer)
+        self._worker.request()
+
+    def _stop(self) -> None:
+        """Stop the background worker, e.g. before the window closes."""
+        if self._worker is not None:
+            self._worker.stop()
+            self._worker = None
 
     def _scale(self, counts: np.ndarray) -> np.ndarray:
         if self.log_scale:
@@ -174,13 +285,12 @@ class Histogram(EventedModel):
             )
 
     def _clear(self, mode: str | None = None) -> None:
-        """Drop cached and partial results for ``mode`` (or all modes)."""
-        if mode is None:
-            self._cache.clear()
-            self._partial.clear()
-        else:
-            self._cache.pop(mode, None)
-            self._partial.pop(mode, None)
+        """Drop results for ``mode`` (or all modes) and cancel their compute."""
+        with _LOCK:
+            for m in self._generation if mode is None else (mode,):
+                self._generation[m] += 1
+                self._cache.pop(m, None)
+                self._partial.pop(m, None)
 
     def _invalidate(self, event: Event | None = None) -> None:
         """Drop all cached results (data, range, bins or samples changed)."""

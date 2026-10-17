@@ -63,12 +63,13 @@ class IntensityVisualizationMixin:
 
         self._histogram = Histogram()
         self._histogram.events.enabled.connect(self._on_histogram_enabled)
+        self._histogram.events.stale.connect(self._on_histogram_stale)
 
     def _on_histogram_enabled(self) -> None:
-        """Feed layer changes to the histogram only while it is enabled.
+        """Keep the histogram up to date (in the background) while enabled.
 
-        Connecting lazily keeps layers free of internal callbacks on their
-        own emitters (see `test_no_callbacks`).
+        Layer events are connected lazily, which keeps layers free of
+        internal callbacks on their own emitters (see `test_no_callbacks`).
         """
         hist = self._histogram
         connections = (
@@ -79,11 +80,17 @@ class IntensityVisualizationMixin:
         if hist.enabled:
             for emitter, callback in connections:
                 emitter.connect(callback)
+            if hist.cached() is None:
+                hist._request(self)
         else:
             for emitter, callback in connections:
                 emitter.disconnect(callback)
+            hist._stop()
             # changes are not tracked while disabled, so drop the cache
             hist._clear()
+
+    def _on_histogram_stale(self) -> None:
+        self._histogram._request(self)
 
     @property
     def histogram(self) -> 'Histogram':
