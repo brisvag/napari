@@ -311,3 +311,8 @@ def test_window_close_stops_histogram_worker(
     viewer.window._qt_window._stop_worker_threads()
     # stopping does not block; the thread exits after its current chunk
     qtbot.waitUntil(lambda: not workers(), timeout=5000)
+
+    # the window is gone, so later layer changes must not restart work
+    assert not layer.histogram.enabled
+    layer.events.data()
+    assert layer.histogram._worker is None
