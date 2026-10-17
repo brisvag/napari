@@ -248,3 +248,22 @@ def test_histogram_visual_update_bars_zero_range(qtbot):
     )
 
     widget.cleanup()
+
+
+def test_qt_histogram_widget_ignores_updates_after_cleanup(qtbot):
+    """Updates queued from the worker thread may land after cleanup."""
+    from types import SimpleNamespace
+
+    layer = Image(np.random.rand(10, 10))
+    widget = QtHistogramWidget(layer)
+    qtbot.addWidget(widget)
+    widget._ensure_histogram_content()
+    visual = widget.histogram_canvas.histogram_visual
+    calls = []
+    visual.set_data = lambda **kwargs: calls.append(kwargs)
+
+    widget.cleanup()
+    widget._on_model_histogram(
+        SimpleNamespace(bin_edges=np.linspace(0, 1, 3), counts=np.ones(2))
+    )
+    assert not calls

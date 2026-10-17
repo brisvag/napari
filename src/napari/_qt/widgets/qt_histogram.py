@@ -137,5 +137,8 @@ class QtHistogramWidget(QWidget):
         """Disconnect event handlers and clean up child widgets."""
         self.disconnect_widget_controls()
         if self._constructed:
+            # updates already queued from the worker thread may still
+            # arrive; they must not touch the destroyed canvas
+            self._constructed = False
             self.settings_widget.cleanup()
             self.histogram_canvas.cleanup()
