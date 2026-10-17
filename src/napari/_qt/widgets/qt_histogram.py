@@ -86,25 +86,28 @@ class _HistogramWorker(QObject):
 
     def _compute_once(
         self, generation: int
-    ) -> tuple[np.ndarray, np.ndarray] | None:
+    ) -> tuple[np.ndarray, np.ndarray, str] | None:
         layer = self._layer_ref()
         if layer is None:
             return None
+        # tag results with their mode, so a late result is never cached
+        # under a mode the user has since switched to
+        mode = layer.histogram.mode
         try:
             gen = layer.histogram._compute_async_no_events(layer)
         except Exception:
             logger.warning('Histogram compute setup failed', exc_info=True)
             return None
 
-        last: tuple[np.ndarray, np.ndarray] | None = None
+        last: tuple[np.ndarray, np.ndarray, str] | None = None
         try:
             for bin_edges, counts in gen:
                 with self._gen_lock:
                     stale = generation != self._generation
                 if stale or self._terminate:
                     return None
-                last = (bin_edges, counts)
-                self.yielded.emit((bin_edges, counts))
+                last = (bin_edges, counts, mode)
+                self.yielded.emit(last)
         except Exception:
             logger.warning('Histogram compute failed', exc_info=True)
             return None
@@ -144,24 +147,14 @@ class QtHistogramWidget(QWidget):
         self._histogram_worker: _HistogramWorker | None = None
         self._appearance = get_settings().appearance
 
-        if mirror:
-            self.layer.histogram.events.updated.connect(
-                self._on_mirrored_histogram
+        # every widget displays the model's results; only the owning
+        # (non-mirror) widget runs the worker when the model says it's stale
+        self.layer.histogram.events.updated.connect(self._on_model_histogram)
+        self.layer.histogram.events.completed.connect(self._on_model_histogram)
+        if not mirror:
+            self.layer.histogram.events.stale.connect(
+                self._schedule_histogram_compute
             )
-            self.layer.histogram.events.completed.connect(
-                self._on_mirrored_histogram
-            )
-        else:
-            for ev in (
-                self.layer.histogram.events.bins,
-                self.layer.histogram.events.max_samples,
-                self.layer.histogram.events.mode,
-                self.layer.histogram.events.log_scale,
-                self.layer.events.data,
-                self.layer.events.contrast_limits_range,
-                self.layer.events.set_data,
-            ):
-                ev.connect(self._schedule_histogram_compute)
 
         self.layer.events.colormap.connect(self._on_colormap_change)
         self.layer.events.contrast_limits.connect(self.update_histogram)
@@ -222,29 +215,26 @@ class QtHistogramWidget(QWidget):
             return
         if self.isVisible():
             self._ensure_histogram_content()
+        if (cached := self.layer.histogram.cached()) is not None:
+            self.bin_edges, self.counts = cached
+            self.update_histogram()
+            return
         self._ensure_histogram_worker().request()
 
-    def _on_mirrored_histogram(self, event: Event) -> None:
+    def _on_model_histogram(self, event: Event) -> None:
         self.bin_edges = event.bin_edges
         self.counts = event.counts
         self.update_histogram()
 
-    def _on_histogram_yield(self, args: tuple[np.ndarray, np.ndarray]) -> None:
-        self.bin_edges, self.counts = args
-        self.layer.histogram.events.updated(
-            bin_edges=self.bin_edges, counts=self.counts
-        )
-        self.update_histogram()
+    def _on_histogram_yield(
+        self, args: tuple[np.ndarray, np.ndarray, str]
+    ) -> None:
+        self.layer.histogram._publish_partial(*args)
 
     def _on_histogram_done(
-        self, args: tuple[np.ndarray, np.ndarray] | None = None
+        self, args: tuple[np.ndarray, np.ndarray, str]
     ) -> None:
-        if args is not None:
-            self.bin_edges, self.counts = args
-        self.layer.histogram.events.completed(
-            bin_edges=self.bin_edges, counts=self.counts
-        )
-        self.update_histogram()
+        self.layer.histogram._publish_result(*args)
 
     def cancel_histogram_compute(self) -> None:
         if self._histogram_worker is not None:

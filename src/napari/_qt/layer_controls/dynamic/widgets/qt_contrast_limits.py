@@ -269,12 +269,9 @@ class QContrastLimitsPopup(QtPopup):
     def _enable_histogram(self, enabled: bool) -> None:
         if enabled:
             self.histogram._ensure_histogram_content()
-            if self._contrast_control is not None:
-                main_hist = getattr(self._contrast_control, 'histogram', None)
-                if main_hist is not None and len(main_hist.counts) > 1:
-                    self.histogram.bin_edges = main_hist.bin_edges
-                    self.histogram.counts = main_hist.counts
-                    self.histogram.update_histogram()
+            if (cached := self._layers[0].histogram.cached()) is not None:
+                self.histogram.bin_edges, self.histogram.counts = cached
+                self.histogram.update_histogram()
             self.histogram.show()
             # process events to ensure the size hint is up to date
             QApplication.processEvents()

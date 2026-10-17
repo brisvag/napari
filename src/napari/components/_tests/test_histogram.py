@@ -266,6 +266,86 @@ class TestMaterializationGuard:
         assert result is None
 
 
+class TestCache:
+    """Results are cached per mode with linear counts."""
+
+    def _enabled_image(self):
+        layer = _image(np.random.default_rng(0).random((20, 20)))
+        layer.histogram.enabled = True
+        return layer
+
+    def test_log_scale_toggle_uses_cache(self, monkeypatch):
+        layer = self._enabled_image()
+        _, linear = layer.histogram.compute(layer)
+
+        def fail(*args, **kwargs):
+            raise AssertionError('should not recompute')
+
+        monkeypatch.setattr(
+            'napari.components.histogram.compute_histogram', fail
+        )
+        completed = []
+        layer.histogram.events.completed.connect(
+            lambda e: completed.append(e.counts)
+        )
+        layer.histogram.log_scale = True
+        np.testing.assert_allclose(completed[-1], np.log10(linear + 1))
+        layer.histogram.log_scale = False
+        np.testing.assert_allclose(completed[-1], linear)
+
+    def test_full_cache_survives_mode_round_trip(self):
+        layer = self._enabled_image()
+        layer.histogram.mode = 'full'
+        _, full = layer.histogram.compute(layer)
+        layer.histogram.mode = 'canvas'
+        layer.histogram.compute(layer)
+        layer.histogram.mode = 'full'
+        cached = layer.histogram.cached()
+        assert cached is not None
+        np.testing.assert_array_equal(cached[1], full)
+
+    def test_slice_change_only_drops_canvas(self):
+        layer = self._enabled_image()
+        layer.histogram.compute(layer)
+        layer.histogram.mode = 'full'
+        layer.histogram.compute(layer)
+        layer.events.set_data()
+        assert layer.histogram.cached() is not None
+        layer.histogram.mode = 'canvas'
+        assert layer.histogram.cached() is None
+
+    @pytest.mark.parametrize(
+        'change',
+        [
+            lambda layer: setattr(layer, 'data', layer.data * 2),
+            lambda layer: setattr(layer, 'contrast_limits_range', (0, 5)),
+            lambda layer: setattr(layer.histogram, 'bins', 16),
+        ],
+    )
+    def test_invalidation(self, change):
+        layer = self._enabled_image()
+        layer.histogram.compute(layer)
+        change(layer)
+        assert layer.histogram.cached() is None
+
+    def test_disable_drops_cache_and_disconnects(self):
+        layer = self._enabled_image()
+        layer.histogram.compute(layer)
+        layer.histogram.enabled = False
+        assert layer.histogram.cached() is None
+        assert len(layer.events.set_data.callbacks) == 0
+
+    def test_stale_only_when_enabled(self):
+        layer = _image(np.random.rand(10, 10))
+        stale = []
+        layer.histogram.events.stale.connect(lambda: stale.append(1))
+        layer.histogram.bins = 16
+        assert not stale
+        layer.histogram.enabled = True
+        layer.histogram.bins = 32
+        assert stale
+
+
 def test_compute_with_empty_generator(monkeypatch):
     """A generator yielding nothing (failed first chunk) is not an error."""
     monkeypatch.setattr(

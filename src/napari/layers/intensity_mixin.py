@@ -62,10 +62,32 @@ class IntensityVisualizationMixin:
         from napari.components.histogram import Histogram
 
         self._histogram = Histogram()
+        self._histogram.events.enabled.connect(self._on_histogram_enabled)
+
+    def _on_histogram_enabled(self) -> None:
+        """Feed layer changes to the histogram only while it is enabled.
+
+        Connecting lazily keeps layers free of internal callbacks on their
+        own emitters (see `test_no_callbacks`).
+        """
+        hist = self._histogram
+        connections = (
+            (self.events.data, hist._invalidate),
+            (self.events.contrast_limits_range, hist._invalidate),
+            (self.events.set_data, hist._on_slice_change),
+        )
+        if hist.enabled:
+            for emitter, callback in connections:
+                emitter.connect(callback)
+        else:
+            for emitter, callback in connections:
+                emitter.disconnect(callback)
+            # changes are not tracked while disabled, so drop the cache
+            hist._cache.clear()
 
     @property
     def histogram(self) -> 'Histogram':
-        """Histogram model for this layer (settings only)."""
+        """Histogram model for this layer (settings and cached results)."""
         return self._histogram
 
     def reset_contrast_limits(self: 'ScalarFieldBase | Surface', mode=None):
