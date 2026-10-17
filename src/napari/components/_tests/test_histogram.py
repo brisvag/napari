@@ -358,6 +358,18 @@ def test_compute_with_empty_generator(monkeypatch):
     assert len(counts) == 1
 
 
+def test_histogram_model_deprecated():
+    from napari.components.histogram import Histogram, HistogramModel
+
+    layer = _image(np.random.rand(10, 10))
+    with pytest.warns(FutureWarning, match='HistogramModel is deprecated'):
+        model = HistogramModel(layer, bins=8)
+    assert isinstance(model, Histogram)
+    assert model.bins == 8
+    with pytest.warns(FutureWarning, match='counts is deprecated'):
+        assert len(model.counts) == 1
+
+
 def test_log_toggle_mid_compute_rescales_partial():
     """Toggling log during a progressive compute must not ask for a restart."""
     layer = _image(np.random.rand(10, 10))

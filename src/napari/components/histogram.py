@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING, Any, Literal
 
 import numpy as np
@@ -193,7 +194,34 @@ class Histogram(EventedModel):
         if self.enabled and self.mode == 'canvas':
             self.events.stale()
 
+    @property
+    def counts(self) -> np.ndarray:
+        """Deprecated: cached counts for the current mode."""
+        warnings.warn(
+            'Histogram.counts is deprecated since 0.10.0 and will be removed '
+            'no earlier than 2026-Q1. Use `layer.histogram.compute(layer)` '
+            'or listen to `layer.histogram.events.completed` instead.',
+            FutureWarning,
+            stacklevel=2,
+        )
+        cached = self.cached()
+        return cached[1] if cached is not None else _make_empty()['counts']
+
     def reset(self) -> None:
         """Reset settings to defaults and drop cached results."""
         super().reset()
         self._clear()
+
+
+class HistogramModel(Histogram):
+    """Deprecated alias of :class:`Histogram`."""
+
+    def __init__(self, layer: Any = None, **data: Any) -> None:
+        warnings.warn(
+            'HistogramModel is deprecated since 0.10.0 and will be removed '
+            'no earlier than 2026-Q1. Use `napari.components.histogram.Histogram`; '
+            'the layer is now passed to `compute(layer)` instead.',
+            FutureWarning,
+            stacklevel=2,
+        )
+        super().__init__(**data)
