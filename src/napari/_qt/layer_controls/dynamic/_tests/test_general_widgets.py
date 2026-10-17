@@ -483,3 +483,53 @@ class TestQtMultiscaleLevelControl:
 
         assert image.locked_data_level == 0
         assert control.level_combobox.currentIndex() == 1
+
+
+def test_log_toggle_does_not_restart_slow_full_compute(
+    qt_wrap: QtWrap, qtbot: QtBot, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Simulates a remote store: each chunk is slow to load."""
+    import time
+
+    from napari.components.histogram import Histogram
+    from napari.utils import histogram as hist_utils
+
+    daskarray = pytest.importorskip('dask.array')
+    load_chunk = hist_utils._load_chunk
+
+    def slow_load_chunk(data, flat_idx):
+        time.sleep(0.02)
+        return load_chunk(data, flat_idx)
+
+    monkeypatch.setattr(hist_utils, '_load_chunk', slow_load_chunk)
+    starts = 0
+    compute = Histogram._compute_async_no_events
+
+    def counting_compute(self, layer):
+        nonlocal starts
+        starts += 1
+        yield from compute(self, layer)
+
+    monkeypatch.setattr(
+        Histogram, '_compute_async_no_events', counting_compute
+    )
+
+    layer = Image(
+        daskarray.random.random((20, 10, 10), chunks=(1, 10, 10)),
+        contrast_limits=(0, 1),
+    )
+    control = QtContrastLimitsControl([layer])
+    qt_wrap.add_control(control)
+    layer.histogram.mode = 'full'
+    layer.histogram.enabled = True
+
+    qtbot.waitUntil(lambda: bool(layer.histogram._partial), timeout=5000)
+    layer.histogram.log_scale = True
+    qtbot.waitUntil(
+        lambda: layer.histogram.cached() is not None, timeout=10000
+    )
+    assert starts == 1
+    layer.histogram.log_scale = False
+    assert starts == 1
+
+    control.disconnect_widget_controls()

@@ -356,3 +356,23 @@ def test_compute_with_empty_generator(monkeypatch):
     bin_edges, counts = layer.histogram.compute(layer)
     assert len(bin_edges) == 2
     assert len(counts) == 1
+
+
+def test_log_toggle_mid_compute_rescales_partial():
+    """Toggling log during a progressive compute must not ask for a restart."""
+    layer = _image(np.random.rand(10, 10))
+    hist = layer.histogram
+    hist.enabled = True
+    hist.mode = 'full'
+    stale, updated = [], []
+    hist.events.stale.connect(lambda: stale.append(1))
+    hist.events.updated.connect(lambda e: updated.append(e.counts))
+
+    edges, linear = np.linspace(0, 1, 5), np.array([0.0, 9.0, 99.0, 999.0])
+    hist._publish_partial(edges, linear, 'full')
+    hist.log_scale = True
+
+    assert not stale
+    np.testing.assert_allclose(updated[-1], [0, 1, 2, 3])
+    hist._publish_result(edges, linear, 'full')
+    np.testing.assert_allclose(hist.cached()[1], [0, 1, 2, 3])

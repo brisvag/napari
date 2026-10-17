@@ -83,7 +83,7 @@ class IntensityVisualizationMixin:
             for emitter, callback in connections:
                 emitter.disconnect(callback)
             # changes are not tracked while disabled, so drop the cache
-            hist._cache.clear()
+            hist._clear()
 
     @property
     def histogram(self) -> 'Histogram':

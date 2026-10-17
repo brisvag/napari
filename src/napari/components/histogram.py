@@ -49,6 +49,11 @@ class Histogram(EventedModel):
     _cache: dict[str, tuple[np.ndarray, np.ndarray]] = PrivateAttr(
         default_factory=dict
     )
+    # mode -> latest progressive (bin_edges, linear counts) of an in-flight
+    # compute, so a log toggle can rescale it instead of restarting
+    _partial: dict[str, tuple[np.ndarray, np.ndarray]] = PrivateAttr(
+        default_factory=dict
+    )
 
     def __init__(self, **data: Any) -> None:
         super().__init__(**data)
@@ -56,7 +61,7 @@ class Histogram(EventedModel):
         self.events.bins.connect(self._invalidate)
         self.events.max_samples.connect(self._invalidate)
         self.events.mode.connect(self._restore_or_stale)
-        self.events.log_scale.connect(self._restore_or_stale)
+        self.events.log_scale.connect(self._on_log_scale_change)
 
     def cached(self) -> tuple[np.ndarray, np.ndarray] | None:
         """Return the cached result for the current mode, if any."""
@@ -120,7 +125,9 @@ class Histogram(EventedModel):
         mode: str | None = None,
     ) -> None:
         """Emit an intermediate result (linear counts in, scaled out)."""
-        if mode is not None and mode != self.mode:
+        mode = mode or self.mode
+        self._partial[mode] = (bin_edges, counts)
+        if mode != self.mode:
             return
         self.events.updated(bin_edges=bin_edges, counts=self._scale(counts))
 
@@ -133,6 +140,7 @@ class Histogram(EventedModel):
         """Cache a final result for `mode` and emit it if it is current."""
         mode = mode or self.mode
         self._cache[mode] = (bin_edges, counts)
+        self._partial.pop(mode, None)
         if mode != self.mode:
             return
         self.events.completed(bin_edges=bin_edges, counts=self._scale(counts))
@@ -150,19 +158,42 @@ class Histogram(EventedModel):
         elif self.enabled:
             self.events.stale()
 
+    def _on_log_scale_change(self) -> None:
+        """Rescale the cached or in-progress result; never recompute.
+
+        Counts are stored linearly, so an in-flight compute stays valid and
+        its later yields pick up the new scale.
+        """
+        if (cached := self.cached()) is not None:
+            self.events.completed(bin_edges=cached[0], counts=cached[1])
+        elif self.mode in self._partial:
+            bin_edges, counts = self._partial[self.mode]
+            self.events.updated(
+                bin_edges=bin_edges, counts=self._scale(counts)
+            )
+
+    def _clear(self, mode: str | None = None) -> None:
+        """Drop cached and partial results for ``mode`` (or all modes)."""
+        if mode is None:
+            self._cache.clear()
+            self._partial.clear()
+        else:
+            self._cache.pop(mode, None)
+            self._partial.pop(mode, None)
+
     def _invalidate(self, event: Event | None = None) -> None:
         """Drop all cached results (data, range, bins or samples changed)."""
-        self._cache.clear()
+        self._clear()
         if self.enabled:
             self.events.stale()
 
     def _on_slice_change(self, event: Event | None = None) -> None:
         """A new slice only invalidates the displayed-data histogram."""
-        self._cache.pop('canvas', None)
+        self._clear('canvas')
         if self.enabled and self.mode == 'canvas':
             self.events.stale()
 
     def reset(self) -> None:
         """Reset settings to defaults and drop cached results."""
         super().reset()
-        self._cache.clear()
+        self._clear()
