@@ -1142,6 +1142,9 @@ class ViewerModel(KeymapProvider, MousemapProviderPydantic, EventedModel):
         # Disconnect all connections from layer
         disconnect_events(layer.events, self)
         disconnect_events(layer.events, self.layers)
+        # stop background histogram work for layers leaving the viewer
+        if (histogram := getattr(layer, 'histogram', None)) is not None:
+            histogram._stop()
 
         self._on_layers_change()
 

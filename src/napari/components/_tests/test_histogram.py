@@ -441,3 +441,31 @@ class TestBackgroundCompute:
         layer.histogram.enabled = False
         assert layer.histogram._worker is None
         self._wait(lambda: not worker._thread.is_alive())
+
+
+def test_removing_layer_stops_histogram_worker(monkeypatch):
+    """A layer removed mid-compute must not keep reading chunks."""
+    import time
+
+    from napari.components import ViewerModel
+    from napari.utils import histogram as hist_utils
+
+    da = pytest.importorskip('dask.array')
+    load_chunk = hist_utils._load_chunk
+
+    def slow_load_chunk(data, flat_idx):
+        time.sleep(0.02)
+        return load_chunk(data, flat_idx)
+
+    monkeypatch.setattr(hist_utils, '_load_chunk', slow_load_chunk)
+    viewer = ViewerModel()
+    layer = viewer.add_image(da.random.random((100, 8, 8), chunks=(1, 8, 8)))
+    layer.histogram.mode = 'full'
+    layer.histogram.enabled = True
+    thread = layer.histogram._worker._thread
+
+    viewer.layers.remove(layer)
+    assert layer.histogram._worker is None
+    thread.join(timeout=5)
+    assert not thread.is_alive()
+    assert layer.histogram.cached() is None
