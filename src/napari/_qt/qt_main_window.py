@@ -634,6 +634,8 @@ class _QtMainWindow(QMainWindow):
         self.status_thread.close_terminate()
         self.status_thread.wait()
         self._qt_viewer.dims.stop()
+        if self._qt_viewer._controls is not None:
+            self._qt_viewer._controls._stop_histogram_workers()
 
     def restart(self):
         """Restart the napari application in a detached process."""

@@ -6,7 +6,7 @@ import contextlib
 import logging
 import threading
 import weakref
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from qtpy.QtCore import QObject, Signal
 from qtpy.QtWidgets import QVBoxLayout, QWidget
@@ -65,6 +65,15 @@ class _HistogramWorker(QObject):
         if thread is not None and thread.is_alive():
             thread.join(timeout=5.0)
 
+    def _emit(self, signal: Any, value: object) -> bool:
+        """Emit, unless this QObject was already deleted during teardown."""
+        try:
+            signal.emit(value)
+        except RuntimeError:  # wrapped C/C++ object has been deleted
+            self._terminate = True
+            return False
+        return True
+
     def _run(self) -> None:
         while not self._terminate:
             self._request_event.wait()
@@ -78,7 +87,7 @@ class _HistogramWorker(QObject):
                 with self._gen_lock:
                     fresh = generation == self._generation
                 if result is not None and fresh and not self._terminate:
-                    self.finished.emit(result)
+                    self._emit(self.finished, result)
                 if self._request_event.is_set():
                     self._request_event.clear()
                     continue
@@ -107,7 +116,8 @@ class _HistogramWorker(QObject):
                 if stale or self._terminate:
                     return None
                 last = (bin_edges, counts, mode)
-                self.yielded.emit(last)
+                if not self._emit(self.yielded, last):
+                    return None
         except Exception:
             logger.warning('Histogram compute failed', exc_info=True)
             return None
