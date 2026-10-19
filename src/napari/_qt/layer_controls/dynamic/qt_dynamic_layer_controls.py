@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (
     QFormLayout,
@@ -102,6 +106,12 @@ from napari.layers import (
 from napari.layers.base._base_constants import Mode
 from napari.layers.intensity_mixin import IntensityVisualizationMixin
 from napari.utils.events import disconnect_events
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from napari._qt.widgets.qt_histogram_content import QtHistogramThread
+
 
 controls_dict = {
     Layer: (
@@ -217,12 +227,15 @@ class QtDynamicLayerControls(QFrame):
     # PAN_ZOOM_ACTION_NAME = ''
     # TRANSFORM_ACTION_NAME = ''
 
-    def __init__(self, layers) -> None:
+    def __init__(
+        self, layers: Iterable[Layer], histogram_thread: QtHistogramThread
+    ) -> None:
         super().__init__()
 
         self._ndisplay: int = 2
         self._layers = layers
         self._controls = []
+        self._histogram_thread = histogram_thread
 
         self.setObjectName('layer')
         self.setMouseTracking(True)
@@ -241,9 +254,15 @@ class QtDynamicLayerControls(QFrame):
         for layer_type, controls in controls_dict.items():
             if all(isinstance(layer, layer_type) for layer in self._layers):
                 for control in controls:
-                    self._add_widget_controls(
-                        control(parent=self, layers=layers)
-                    )
+                    if issubclass(control, QtContrastLimitsControl):
+                        ctrl = control(
+                            parent=self,
+                            layers=layers,
+                            histogram_thread=self._histogram_thread,
+                        )
+                    else:
+                        ctrl = control(parent=self, layers=layers)
+                    self._add_widget_controls(ctrl)
         for layer in self._layers:
             layer.events.data.connect(self._on_surface_coloring_change)
 
@@ -262,6 +281,11 @@ class QtDynamicLayerControls(QFrame):
         layout.addRow('experimental!', warn_widget)
         self._on_surface_coloring_change()
         self._on_ndisplay_changed()
+
+    @property
+    def histogram_thread(self) -> QtHistogramThread:
+        """The histogram thread used for computing histograms."""
+        return self._histogram_thread
 
     def _add_widget_controls(
         self,

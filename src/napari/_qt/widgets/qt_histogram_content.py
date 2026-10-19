@@ -5,35 +5,26 @@ from __future__ import annotations
 from threading import Lock
 from typing import TYPE_CHECKING
 
-import numpy as np
 from qtpy.QtCore import QThread, Signal
 from qtpy.QtWidgets import QVBoxLayout, QWidget
 
 from napari._qt.widgets.qt_histogram import QtHistogramWidget
 from napari._qt.widgets.qt_histogram_settings import QtHistogramSettingsWidget
-from napari.qt import create_worker
-from napari.utils.events import Event, disconnect_events
+from napari.utils.events import disconnect_events
 
 if TYPE_CHECKING:
     from collections.abc import Generator
 
+    import numpy as np
     from qtpy.QtCore import QEvent
 
-    from napari._qt.qthreading import FunctionWorker, GeneratorWorker
-    from napari.layers.intensity_mixin import IntensityVisualizationMixin
     from napari.utils.histogram import HistogramSupportLayer
 
 
 class QtHistogramThread(QThread):
-    """Thread for computing histogram in the background.
+    """Thread for computing histogram in the background."""
 
-    Parameters
-    ----------
-    layer : HistogramSupportLayer | None
-        The napari Image layer to visualize.
-    """
-
-    histogram_computed = Signal(object, np.ndarray)
+    histogram_computed = Signal(object, tuple)
 
     layer: HistogramSupportLayer | None
     next_layer: HistogramSupportLayer | None
@@ -57,14 +48,15 @@ class QtHistogramThread(QThread):
         if self.layer is None:
             return False
         hist = self.layer.histogram
-        for result in hist._compute_async_no_events(self.layer):
+        layer = self.layer
+        for result in hist._compute_async_no_events(layer):
             with self.lock:
                 if self._need_to_stop:
                     return False
-            if self.next_layer is not None:
-                # If the layer has changed, stop processing
-                return True
-            self.histogram_computed.emit(self.layer, result)
+                if self.next_layer is not None:
+                    # If the layer has changed, stop processing
+                    return True
+            self.histogram_computed.emit(layer, result)
         return False
 
     def run(self) -> None:
@@ -90,12 +82,15 @@ class QtHistogramThread(QThread):
         super().start(priority)
 
     def schedule_next_layer(self, layer: HistogramSupportLayer) -> None:
+        need_start = False
         with self.lock:
             if not self.isRunning():
                 self.layer = layer
-                self.start()
+                need_start = True
             else:
                 self.next_layer = layer
+        if need_start:
+            self.start()
 
     def quit(self) -> None:
         """Stop the thread."""
@@ -109,8 +104,10 @@ class QtHistogramContentWidget(QWidget):
 
     Parameters
     ----------
-    layer : Image
-        The napari Image layer to visualize.
+    layer : HistogramSupportLayer
+        The napari layer to visualize.
+    histogram_thread : QtHistogramThread
+        The thread used for computing histograms.
     parent : QWidget, optional
         Parent widget.
 
@@ -124,13 +121,15 @@ class QtHistogramContentWidget(QWidget):
 
     def __init__(
         self,
-        layer: IntensityVisualizationMixin,
+        layer: HistogramSupportLayer,
+        histogram_thread: QtHistogramThread,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
         self.layer = layer
         self._constructed = False
-        self._histogram_worker: GeneratorWorker | FunctionWorker | None = None
+        self.histogram_thread = histogram_thread
+        histogram_thread.histogram_computed.connect(self._on_histogram_yield)
 
         for ev in (
             self.layer.histogram.events.bins,
@@ -142,8 +141,6 @@ class QtHistogramContentWidget(QWidget):
             self.layer.events.set_data,
         ):
             ev.connect(self._schedule_histogram_compute)
-
-        self.destroyed.connect(self._abort_histogram_worker)
 
     def _ensure_histogram_content(self) -> None:
         """Lazily create the histogram content widget (vispy canvas).
@@ -176,38 +173,16 @@ class QtHistogramContentWidget(QWidget):
     ) -> Generator[tuple[np.ndarray, np.ndarray]]:
         yield from self.layer.histogram._compute_async_no_events(self.layer)
 
-    def _schedule_histogram_compute(self, event: Event | None = None) -> None:
+    def _schedule_histogram_compute(self) -> None:
         """Run the async histogram compute."""
-        self._ensure_histogram_content()
-        self._abort_histogram_worker()
-        worker = create_worker(self._yield_from_histogram)  # pyrefly: ignore [bad-argument-type]
-        self._histogram_worker = worker
+        self.histogram_thread.schedule_next_layer(self.layer)
 
-        worker.yielded.connect(self._on_histogram_yield)
-        worker.finished.connect(self._on_histogram_done)
-        worker.start()
-
-    def _on_histogram_yield(self, event: QEvent | None = None) -> None:
+    def _on_histogram_yield(self) -> None:
         self.layer.histogram.events.updated()
 
     def _on_histogram_done(self, event: QEvent | None = None) -> None:
         """Emit ``completed`` on the main thread once the worker finishes."""
         self.layer.histogram.events.completed()
-        self._abort_histogram_worker()
-
-    def _abort_histogram_worker(self) -> None:
-        """Stop any in-flight compute worker."""
-        worker = self._histogram_worker
-        self._histogram_worker = None
-        if worker is None:
-            return
-        worker.yielded.disconnect()
-        worker.finished.disconnect()
-        # progress bar should be stopped if present
-        pbar = getattr(worker, 'pbar', None)
-        if pbar is not None:
-            pbar.close()
-        worker.quit()
 
     def disconnect_widget_controls(self) -> None:
         disconnect_events(self.layer.histogram.events, self)
@@ -215,6 +190,5 @@ class QtHistogramContentWidget(QWidget):
 
     def cleanup(self) -> None:
         """Disconnect event handlers and clean up child widgets."""
-        self._abort_histogram_worker()
         self.settings_widget.cleanup()
         self.histogram_widget.cleanup()

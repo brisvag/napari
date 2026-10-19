@@ -15,6 +15,7 @@ from napari._qt.layer_controls.qt_surface_controls import QtSurfaceControls
 from napari._qt.layer_controls.qt_tracks_controls import QtTracksControls
 from napari._qt.layer_controls.qt_vectors_controls import QtVectorsControls
 from napari._qt.widgets.qt_histogram import QtHistogramWidget
+from napari._qt.widgets.qt_histogram_content import QtHistogramThread
 from napari.layers import (
     Image,
     Labels,
@@ -104,6 +105,7 @@ class QtLayerControlsContainer(QStackedWidget):
     def __init__(self, viewer: ViewerModel) -> None:
         super().__init__()
         self.viewer = viewer
+        self.histogram_thread = QtHistogramThread()
 
         self.setMouseTracking(True)
         self.empty_widget = QFrame()
@@ -192,7 +194,7 @@ class QtLayerControlsContainer(QStackedWidget):
             layers = [
                 layer for layer in self.viewer.layers if layer in selection
             ]
-            self.panel = QtDynamicLayerControls(layers)
+            self.panel = QtDynamicLayerControls(layers, self.histogram_thread)
             self.panel.ndisplay = self.viewer.dims.ndisplay
             self.addWidget(self.panel)
             self.setCurrentWidget(self.panel)

@@ -34,6 +34,7 @@ from napari.utils._dtype import normalize_dtype
 from napari.utils.events.event_utils import connect_no_arg, connect_setattr
 
 if TYPE_CHECKING:
+    from napari._qt.widgets.qt_histogram_content import QtHistogramThread
     from napari.layers import Image, Surface
 
 
@@ -98,12 +99,14 @@ class QContrastLimitsPopup(QtPopup):
     def __init__(
         self,
         layers: list[Image | Surface],
+        histogram_thread: QtHistogramThread,
         parent: Optional[QWidget] = None,
         contrast_control=None,
     ) -> None:
         super().__init__(parent)
 
         self._layers = layers
+        self._histogram_thread = histogram_thread
         self._contrast_control = contrast_control
         self._frame_base_height = 0
 
@@ -194,7 +197,9 @@ class QContrastLimitsPopup(QtPopup):
             # _schedule_histogram_compute() to avoid a PySide6 segfault when creating
             # native GL widgets during __init__.
             layer = self._layers[0]
-            self.histogram_content = QtHistogramContentWidget(layer)
+            self.histogram_content = QtHistogramContentWidget(
+                layer, histogram_thread=self._histogram_thread
+            )
             self._layout.addWidget(self.histogram_content)
             self.histogram_button = QtModePushButton(
                 layer,
@@ -332,9 +337,13 @@ class QtContrastLimitsControl(QtWidgetControlsBase):
     _layers: list[Image | Surface]
 
     def __init__(
-        self, layers: list[Image | Surface], parent: QWidget | None = None
+        self,
+        layers: list[Image | Surface],
+        histogram_thread: QtHistogramContentWidget,
+        parent: QWidget | None = None,
     ) -> None:
         super().__init__(layers, parent)
+        self._histogram_thread = histogram_thread
         # Setup layer
         for layer in self._layers:
             layer.events.contrast_limits.connect(
@@ -413,7 +422,9 @@ class QtContrastLimitsControl(QtWidgetControlsBase):
         if len(self._layers) == 1:
             layer = self._layers[0]
 
-            self.histogram_content = QtHistogramContentWidget(layer)
+            self.histogram_content = QtHistogramContentWidget(
+                layer, histogram_thread=self._histogram_thread
+            )
             self.histogram_content.setProperty('foreground', 'true')
 
             self._enable_histogram(layer.histogram.enabled)
@@ -433,6 +444,7 @@ class QtContrastLimitsControl(QtWidgetControlsBase):
         self.clim_popup = QContrastLimitsPopup(
             layers=self._layers,
             parent=self.parent(),
+            histogram_thread=self._histogram_thread,
             contrast_control=self,
         )
         if self.parent():
@@ -503,7 +515,6 @@ class QtContrastLimitsControl(QtWidgetControlsBase):
             self.histogram_content.show()
         else:
             self.histogram_content.hide()
-            self.histogram_content._abort_histogram_worker()
 
     def get_widget_controls(
         self,

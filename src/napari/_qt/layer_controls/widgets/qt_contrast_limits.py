@@ -459,7 +459,6 @@ class QtContrastLimitsControl(QtWidgetControlsBase):
             self.histogram_content.show()
         else:
             self.histogram_content.hide()
-            self.histogram_content._abort_histogram_worker()
 
     def get_widget_controls(
         self,
