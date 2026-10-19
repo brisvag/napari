@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+from threading import Lock
 from typing import TYPE_CHECKING
 
+import numpy as np
+from qtpy.QtCore import QThread, Signal
 from qtpy.QtWidgets import QVBoxLayout, QWidget
 
 from napari._qt.widgets.qt_histogram import QtHistogramWidget
@@ -14,11 +17,91 @@ from napari.utils.events import Event, disconnect_events
 if TYPE_CHECKING:
     from collections.abc import Generator
 
-    import numpy as np
     from qtpy.QtCore import QEvent
 
     from napari._qt.qthreading import FunctionWorker, GeneratorWorker
     from napari.layers.intensity_mixin import IntensityVisualizationMixin
+    from napari.utils.histogram import HistogramSupportLayer
+
+
+class QtHistogramThread(QThread):
+    """Thread for computing histogram in the background.
+
+    Parameters
+    ----------
+    layer : HistogramSupportLayer | None
+        The napari Image layer to visualize.
+    """
+
+    histogram_computed = Signal(object, np.ndarray)
+
+    layer: HistogramSupportLayer | None
+    next_layer: HistogramSupportLayer | None
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.lock = Lock()
+        self.layer = None
+        self.next_layer = None
+        self._need_to_stop = False
+        self._last_result: tuple[np.ndarray, np.ndarray] | None = None
+
+    def calculation_loop(self) -> bool:
+        """Run the histogram calculation loop.
+
+        Returns
+        -------
+        bool
+            True if the loop finished naturally.
+        """
+        if self.layer is None:
+            return False
+        hist = self.layer.histogram
+        for result in hist._compute_async_no_events(self.layer):
+            with self.lock:
+                if self._need_to_stop:
+                    return False
+            if self.next_layer is not None:
+                # If the layer has changed, stop processing
+                return True
+            self.histogram_computed.emit(self.layer, result)
+        return False
+
+    def run(self) -> None:
+        """Compute the histogram in a separate thread."""
+        while True:
+            with self.lock:
+                if self._need_to_stop:
+                    return
+            if self.calculation_loop():
+                with self.lock:
+                    self.layer = self.next_layer
+                    self.next_layer = None
+            else:
+                with self.lock:
+                    self._need_to_stop = True
+
+    def start(
+        self, priority: QThread.Priority = QThread.Priority.InheritPriority
+    ) -> None:
+        """Start the thread."""
+        with self.lock:
+            self._need_to_stop = False
+        super().start(priority)
+
+    def schedule_next_layer(self, layer: HistogramSupportLayer) -> None:
+        with self.lock:
+            if not self.isRunning():
+                self.layer = layer
+                self.start()
+            else:
+                self.next_layer = layer
+
+    def quit(self) -> None:
+        """Stop the thread."""
+        with self.lock:
+            self._need_to_stop = True
+        super().quit()
 
 
 class QtHistogramContentWidget(QWidget):
