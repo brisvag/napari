@@ -6,11 +6,19 @@ import logging
 import math
 import warnings
 from collections.abc import Generator, Sequence
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import numpy as np
 
 from napari.utils._dask_utils import _is_dask_data
+
+if TYPE_CHECKING:
+    from typing_extensions import TypeIs
+
+    from napari.layers import Image, Layer, Surface
+    from napari.types import ArrayLike
+
+    HistogramSupportLayer = Surface | Image
 
 logger = logging.getLogger('napari.components.histogram')
 
@@ -22,19 +30,52 @@ logger = logging.getLogger('napari.components.histogram')
 _MAX_MATERIALIZE_ELEMENTS: int = 50_000_000
 
 
+def _is_surface(layer: Layer) -> TypeIs[Surface]:
+    """Return True if *layer* is a Surface layer."""
+    return type(layer).__name__ == 'Surface'
+
+
 def compute_histogram(
-    layer: Any,
+    layer: HistogramSupportLayer,
     *,
     bin_count: int,
     max_samples: int,
     mode: Literal['canvas', 'full'],
     log_scale: bool,
-) -> Generator[tuple[np.ndarray, np.ndarray], None, None]:
+) -> Generator[
+    tuple[
+        np.ndarray[tuple[int], np.dtype[np.float32]],
+        np.ndarray[tuple[int], np.dtype[np.float32]],
+    ],
+    None,
+    None,
+]:
     """Yield ``(bin_edges, counts)`` for histogram computation.
 
     For chunked full-mode data, yields intermediate results after each
     chunk for progressive display. For non-chunked data, yields the final
     result once. Returns .
+
+    Parameters
+    ----------
+    layer : HistogramSupportLayer
+        The napari layer for which to compute the histogram.
+        Technically it supports only Image and Surface layers.
+        To add new layer types, implement the ``_get_full_data`` and ``_get_displayed_data`` functions for that layer type.
+    bin_count : int
+        Number of bins for the histogram.
+    max_samples : int
+        Maximum number of samples to use for histogram computation.
+    mode : Literal['canvas', 'full']
+        Whether to compute the histogram from the currently displayed
+        slice ('canvas') or the full data ('full').
+    log_scale : bool
+        Whether to use a logarithmic scale for the histogram.
+
+    Yields
+    ------
+    tuple[np.ndarray, np.ndarray]
+        A tuple containing the bin edges and counts for the histogram.
     """
     data = _get_data(layer, mode)
 
@@ -80,10 +121,13 @@ def _get_computed(layer: Any) -> dict[str, np.ndarray]:
 
 def _calc_histogram(
     data: np.ndarray,
-    layer: Any,
+    layer: HistogramSupportLayer,
     bin_count: int,
     log_scale: bool,
-) -> tuple[np.ndarray, np.ndarray]:
+) -> tuple[
+    np.ndarray[tuple[int], np.dtype[np.float32]],
+    np.ndarray[tuple[int], np.dtype[np.float32]],
+]:
     """Compute bin edges and counts from data.
 
     Separates the pure numpy histogram computation from data fetching
@@ -93,14 +137,16 @@ def _calc_histogram(
     ----------
     data : np.ndarray
         Preprocessed 1D data array.
-    range_min : float
-        Minimum value for histogram range.
-    range_max : float
-        Maximum value for histogram range.
+    layer : HistogramSupportLayer
+        The napari layer for which to compute the histogram.
+    bin_count : int
+        Number of bins for the histogram.
+    log_scale : bool
+        Whether to use a logarithmic scale for the histogram.
 
     Returns
     -------
-    tuple[np.ndarray, np.ndarray]
+    tuple[np.ndarray[tuple[int], np.dtype[np.float32]], np.ndarray[tuple[int], np.dtype[np.float32]]]
         (bin_edges, counts) — bin edges as float32, counts as float32.
     """
     range_min, range_max = layer.contrast_limits_range
@@ -126,6 +172,11 @@ def _calc_histogram(
         bins=bin_count,
         range=(float(range_min), float(range_max)),
     )
+
+    # Convert to float32 for consistency and to reduce memory usage.
+    # before conversion, for float types it will follow the data type of the input,
+    # for integer types it will be float64.
+    bin_edges = bin_edges.astype(np.float32)
 
     if log_scale:
         hist_counts = np.log10(counts + 1).astype(np.float32)
@@ -174,15 +225,15 @@ def _sample_rgb_and_luminance(
 
 
 def _get_data(
-    layer: Any, mode: Literal['canvas', 'full']
-) -> np.ndarray | None:
+    layer: HistogramSupportLayer, mode: Literal['canvas', 'full']
+) -> ArrayLike | None:
     """Get data from layer based on current mode."""
     if mode == 'canvas':
         return _get_displayed_data(layer)
     return _get_full_data(layer)
 
 
-def _get_displayed_data(layer: Any) -> np.ndarray | None:
+def _get_displayed_data(layer: HistogramSupportLayer) -> np.ndarray | None:
     """Get data from currently displayed slice.
 
     In 'canvas' mode, the histogram is computed from the visible data
@@ -198,34 +249,48 @@ def _get_displayed_data(layer: Any) -> np.ndarray | None:
     return None
 
 
-def _get_slice_raw_data(layer: Any) -> np.ndarray | None:
-    """Get the currently sliced raw image data if available."""
-    if type(layer).__name__ == 'Surface':
+def _get_slice_raw_data(layer: HistogramSupportLayer) -> np.ndarray | None:
+    """Get the currently sliced raw image data if available.
+
+    Parameters
+    ----------
+    layer : Image | Surface
+        The layer from which to retrieve the currently sliced raw image data.
+        Currently supports Image and Surface layers.
+
+    Returns
+    -------
+    np.ndarray | None
+        Currently sliced data as a numpy array if available, otherwise None.
+    """
+    if _is_surface(layer):
+        # check if layer is Surface without importing Surface class to avoid circular import
         data = layer._slicing_state._view_vertex_values
         return np.asarray(data) if data is not None else None
 
     layer_slice = layer._slice
-    if layer_slice is None:
-        return None
     raw = layer_slice.image.raw
     return np.asarray(raw) if raw is not None else None
 
 
-def _get_full_data(layer: Any) -> np.ndarray | None:
-    """Get full volume data, using coarsest level for multiscale."""
-    if type(layer).__name__ == 'Surface':
+def _get_full_data(layer: HistogramSupportLayer) -> ArrayLike | None:
+    """Get full volume data, using the coarsest level for multiscale."""
+    if _is_surface(layer):
         # Surface layers contain vertex values in the third element of the tuple.
-        # Check if the surface has vortex values, if yes return them, otherwise return None.
+        # Check if the surface has vertex values, if yes return them, otherwise return None.
         if len(layer.data) == 2:
             return None
         data = layer.data[2]
         return np.asarray(data)
 
+    # From here we have Image layer.
     data = layer.data
 
     # Unpack multiscale to the coarsest level.
     if isinstance(data, Sequence) and not isinstance(
-        data, (np.ndarray, str, bytes)
+        # Why could it be str or bytes?
+        data,
+        (np.ndarray, str, bytes),
     ):
         data = data[-1]
 
@@ -265,6 +330,8 @@ def _has_chunks(data: Any) -> bool:
     unchunked/contiguous datasets:
     https://docs.h5py.org/en/latest/high/dataset.html#chunked-storage
     """
+
+    # TODO fixme, fix for tensorstore?
     if _is_dask_data(data):
         return True
     chunks = getattr(data, 'chunks', None)
@@ -277,6 +344,7 @@ def _chunk_sizes(data: Any) -> list[int]:
     Works for both dask (per-chunk tuple-of-tuples) and zarr
     (per-dimension scalar) arrays — only metadata is accessed.
     """
+    # TODO fixme, fix for tensorstore?
     import dask.array as da
 
     if isinstance(data, da.Array):
@@ -351,6 +419,25 @@ def _compute_chunked_progressive(
     """Generator that yields ``(bin_edges, counts)`` after each chunk.
 
     Provides incremental histogram snapshots as each chunk is loaded.
+
+    Parameters
+    ----------
+    data : Any
+        The chunked data array (dask or zarr).
+    contrast_limits_range : tuple[float | None, float | None]
+        The contrast limits range for histogram computation. If either value is None, defaults to (0.0, 1.0).
+    bin_count : int
+        Number of bins for the histogram.
+    max_samples : int
+        Maximum number of samples to use for histogram computation.
+    log_scale : bool
+        Whether to use a logarithmic scale for the histogram.
+
+    Yields
+    ------
+    tuple[np.ndarray, np.ndarray]
+        A tuple containing the bin edges and counts for the histogram after each chunk is processed.
+
     """
     n = min(max_samples, data.size)
     chunk_sizes = _chunk_sizes(data)

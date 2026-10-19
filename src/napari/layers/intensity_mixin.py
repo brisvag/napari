@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Literal
 
 import numpy as np
@@ -141,12 +142,12 @@ class IntensityVisualizationMixin(Layer):
         self.events.contrast_limits()
 
     @property
-    def contrast_limits_range(self):
+    def contrast_limits_range(self) -> tuple[float | None, float | None]:
         """The current valid range of the contrast limits."""
-        return list(self._contrast_limits_range)
+        return tuple(self._contrast_limits_range)
 
     @contrast_limits_range.setter
-    def contrast_limits_range(self, value):
+    def contrast_limits_range(self, value: Sequence[float | None]):
         """Set the valid range of the contrast limits.
         If either value is "None", the current range will be preserved.
         If the range overlaps the current contrast limits, the range will be set

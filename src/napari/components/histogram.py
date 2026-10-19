@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
     import numpy as np
 
-    from napari.layers.intensity_mixin import IntensityVisualizationMixin
+    from napari.utils.histogram import HistogramSupportLayer
 
 
 class Histogram(EventedModel):
@@ -32,7 +32,7 @@ class Histogram(EventedModel):
         self.events.add(completed=Event, updated=Event)
 
     def compute_async(
-        self, layer: IntensityVisualizationMixin
+        self, layer: HistogramSupportLayer
     ) -> Generator[tuple[np.ndarray, np.ndarray]]:
         """Yield ``(bin_edges, counts)`` for ``layer`` using the model settings.
 
@@ -47,7 +47,7 @@ class Histogram(EventedModel):
         self.events.completed()
 
     def compute(
-        self, layer: IntensityVisualizationMixin
+        self, layer: HistogramSupportLayer
     ) -> tuple[np.ndarray, np.ndarray]:
         """Compute the full histogram for ``layer`` synchronously.
 
@@ -60,7 +60,7 @@ class Histogram(EventedModel):
         return bin_edges, counts
 
     def _compute_async_no_events(
-        self, layer: IntensityVisualizationMixin
+        self, layer: HistogramSupportLayer
     ) -> Generator[tuple[np.ndarray, np.ndarray]]:
         """Non-evented generator to use in separate threads.
 
