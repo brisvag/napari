@@ -69,6 +69,45 @@ def _drag_logger(log):
     return drag
 
 
+def test_press_after_lost_release_starts_a_new_drag():
+    """A stale drag generator must not swallow the next press."""
+    layer = Points()
+    log = []
+    layer.mouse_drag_callbacks.append(_drag_logger(log))
+
+    mouse_press_callbacks(layer, read_only_mouse_event(type='mouse_press'))
+    mouse_move_callbacks(
+        layer, read_only_mouse_event(type='mouse_move', is_dragging=True)
+    )
+    # the release never arrives, and the user presses again
+    mouse_press_callbacks(layer, read_only_mouse_event(type='mouse_press'))
+
+    assert log.count('press') == 2
+    assert len(layer._mouse_drag_gen) == 1
+
+    mouse_release_callbacks(layer, read_only_mouse_event(type='mouse_release'))
+    assert not layer._mouse_drag_gen
+    assert not layer._persisted_mouse_event
+
+
+def test_stale_drag_generator_is_closed_on_new_press():
+    layer = Points()
+    closed = []
+
+    def drag(layer, event):
+        try:
+            while True:
+                yield
+        finally:
+            closed.append(True)
+
+    layer.mouse_drag_callbacks.append(drag)
+    mouse_press_callbacks(layer, read_only_mouse_event(type='mouse_press'))
+    assert not closed
+    mouse_press_callbacks(layer, read_only_mouse_event(type='mouse_press'))
+    assert closed == [True]
+
+
 def test_generator_exception_warns_and_is_cleaned_up():
     layer = Points()
 
@@ -124,6 +163,18 @@ def test_active_generator_accepts_unwrapped_events():
     mouse_release_callbacks(layer, MouseEvent(type='mouse_release'))
 
     assert log == ['press', 'move', 'release']
+
+
+def test_lost_release_runs_post_loop_cleanup_before_new_drag():
+    layer = Points()
+    log = []
+    layer.mouse_drag_callbacks.append(_drag_logger(log))
+
+    mouse_press_callbacks(layer, read_only_mouse_event(type='mouse_press'))
+    mouse_press_callbacks(layer, read_only_mouse_event(type='mouse_press'))
+
+    # the stale drag is finished by the second press, then a new one starts
+    assert log == ['press', 'release', 'press']
 
 
 def test_failing_close_does_not_leave_generators_registered():

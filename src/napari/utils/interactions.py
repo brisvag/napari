@@ -215,6 +215,9 @@ def mouse_press_callbacks(
     Drag callbacks go through this machinery too on setup (since the first
     step of a drag is a press).
 
+    A drag still active on press has lost its release (e.g. to a dialog): it
+    is stepped with the press to let it finish, and closed if it does not.
+
     Note that drag callbacks should have the following form:
 
     .. code-block:: python
@@ -240,10 +243,9 @@ def mouse_press_callbacks(
     event : Event
         Mouse event
     """
-    completed = _step_active_generators(obj, event, 'drag')
-    _run_callbacks_and_maybe_store_generators(
-        obj, event, 'drag', ignore=completed
-    )
+    _step_active_generators(obj, event, 'drag')
+    _discard_active_generators(obj, 'drag')
+    _run_callbacks_and_maybe_store_generators(obj, event, 'drag')
 
 
 def mouse_move_callbacks(
