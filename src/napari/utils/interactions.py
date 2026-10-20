@@ -270,6 +270,10 @@ def mouse_move_callbacks(
             # when done
             print('goodbye world ;(')
 
+    .. versionchanged:: 0.10.0
+        Move callbacks are also called during drags; check
+        `event.is_dragging` to skip them.
+
     Parameters
     ----------
     obj : ViewerModel or Layer
