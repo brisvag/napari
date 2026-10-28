@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 from napari.utils.events import EmitterGroup
 from napari.utils.interactions import Shortcut
+from napari.utils.migrations import deprecation_warning
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -158,13 +159,14 @@ class ActionManager:
         """
 
         if repeatable:
-            warnings.warn(
-                'The `repeatable` flag is deprecated and ignored: key '
-                'auto-repeat is now delivered to every binding by default, '
-                'and hold-semantics bindings suppress it automatically. '
-                'Stop passing `repeatable`.',
-                DeprecationWarning,
-                stacklevel=2,
+            deprecation_warning(
+                previous_name='The `repeatable` flag',
+                since='0.10.0',
+                window='2027-Q2',
+                details=(
+                    'auto-repeat is now delivered to every binding by default, '
+                    'and hold-semantics bindings suppress it automatically.'
+                ),
             )
         self._validate_action_name(name)
         self._actions[name] = Action(
