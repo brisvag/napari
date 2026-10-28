@@ -52,8 +52,8 @@ def read_data_with_plugins(
     """
     if plugin == 'builtins':
         deprecation_warning(
-            name='The "builtins" plugin name',
-            replacement='"napari"',
+            previous_name='The "builtins" plugin name',
+            new_name='"napari"',
             since='0.4.17',
             window='2027-Q1',
         )

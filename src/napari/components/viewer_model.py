@@ -305,7 +305,7 @@ class ViewerModel(KeymapProvider, MousemapProviderPydantic, EventedModel):
     @property
     @deprecated(
         deprecation_message(
-            oldname='viewer.camera',
+            previous_name='viewer.camera',
             new_name='viewer.scene.camera',
             since='0.9.0',
         ),
@@ -322,7 +322,7 @@ class ViewerModel(KeymapProvider, MousemapProviderPydantic, EventedModel):
     @property
     @deprecated(
         deprecation_message(
-            oldname='viewer.axes',
+            previous_name='viewer.axes',
             new_name='viewer.scene.overlays.axes',
             since='0.9.0',
         ),
@@ -339,7 +339,7 @@ class ViewerModel(KeymapProvider, MousemapProviderPydantic, EventedModel):
     @property
     @deprecated(
         deprecation_message(
-            oldname='viewer.floating_axes',
+            previous_name='viewer.floating_axes',
             new_name='viewer.canvas.overlays.axes',
             since='0.9.0',
         ),
@@ -356,7 +356,7 @@ class ViewerModel(KeymapProvider, MousemapProviderPydantic, EventedModel):
     @property
     @deprecated(
         deprecation_message(
-            oldname='viewer.scale_bar',
+            previous_name='viewer.scale_bar',
             new_name='viewer.canvas.overlays.scale_bar',
             since='0.9.0',
         ),
@@ -373,7 +373,7 @@ class ViewerModel(KeymapProvider, MousemapProviderPydantic, EventedModel):
     @property
     @deprecated(
         deprecation_message(
-            oldname='viewer.text_overlay',
+            previous_name='viewer.text_overlay',
             new_name='viewer.canvas.overlays.text',
             since='0.9.0',
         ),
@@ -390,7 +390,7 @@ class ViewerModel(KeymapProvider, MousemapProviderPydantic, EventedModel):
     @property
     @deprecated(
         deprecation_message(
-            oldname='viewer.grid',
+            previous_name='viewer.grid',
             new_name='viewer.canvas.grid',
             since='0.9.0',
         ),
@@ -1610,8 +1610,8 @@ class ViewerModel(KeymapProvider, MousemapProviderPydantic, EventedModel):
         """
         if plugin == 'builtins':
             deprecation_warning(
-                name='The "builtins" plugin name',
-                replacement='"napari"',
+                previous_name='The "builtins" plugin name',
+                new_name='"napari"',
                 since='0.4.17',
                 window='2027-Q1',
             )

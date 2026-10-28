@@ -896,7 +896,7 @@ def get_extent_world(
     """
     if centered is not None:
         deprecation_warning(
-            name='The `centered` argument',
+            previous_name='The `centered` argument',
             since='0.5.0',
             window='2027-Q1',
             details=(

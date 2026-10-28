@@ -312,7 +312,7 @@ class ScalarFieldBase(Layer, ABC):
             locked_data_level=Event,
             interpolation=WarningEmitter(
                 deprecation_message(
-                    oldname="'layer.events.interpolation'",
+                    previous_name="'layer.events.interpolation'",
                     new_name='`interpolation2d` and `interpolation3d`',
                     since='0.5.0',
                     window='2027-Q1',

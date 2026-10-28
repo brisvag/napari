@@ -833,12 +833,16 @@ def _omit_viewer_args(constructor):
     def _func(*args, **kwargs: Any) -> Any:
         if len(args) > 1 and not isinstance(args[1], str):
             deprecation_warning(
-                name='The viewer argument', since='0.4.14', window='2027-Q1'
+                previous_name='The viewer argument',
+                since='0.4.14',
+                window='2027-Q1',
             )
             args = args[:1] + args[2:]
         if 'viewer' in kwargs:
             deprecation_warning(
-                name='The viewer argument', since='0.4.14', window='2027-Q1'
+                previous_name='The viewer argument',
+                since='0.4.14',
+                window='2027-Q1',
             )
             del kwargs['viewer']
         return constructor(*args, **kwargs)

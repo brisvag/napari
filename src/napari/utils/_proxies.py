@@ -58,7 +58,7 @@ class PublicOnlyProxy(wrapt.ObjectProxy, Generic[_T]):
     @staticmethod
     def _private_attr_warning(name: str, typ: str) -> None:
         deprecation_warning(
-            name=f"Private attribute access ('{typ}.{name}') in this context",
+            previous_name=f"Private attribute access ('{typ}.{name}') in this context",
             since='0.4.13',
             window='2027-Q1',
             details=(

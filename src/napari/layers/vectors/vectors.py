@@ -38,7 +38,7 @@ if TYPE_CHECKING:
     from napari.components.dims import Dims
 
 _OUT_SLICE_DISP_WARNING_MSG = deprecation_message(
-    oldname='out_of_slice_display',
+    previous_name='out_of_slice_display',
     new_name='projection_mode',
     since='0.9.0',
     window='2027-Q1',

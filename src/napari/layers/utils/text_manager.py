@@ -152,8 +152,8 @@ class TextManager(EventedModel):
             The new properties from the layer
         """
         deprecation_warning(
-            name='`TextManager.refresh_text`',
-            replacement='`TextManager.refresh`',
+            previous_name='`TextManager.refresh_text`',
+            new_name='`TextManager.refresh`',
             since='0.4.16',
         )
         features = _validate_features(properties)
@@ -170,8 +170,8 @@ class TextManager(EventedModel):
             The number of text elements to add
         """
         deprecation_warning(
-            name='`TextManager.add`',
-            replacement='`TextManager.apply`',
+            previous_name='`TextManager.add`',
+            new_name='`TextManager.apply`',
             since='0.4.16',
         )
         features = _validate_features(
@@ -385,25 +385,31 @@ class TextManager(EventedModel):
 
 def _warn_about_deprecated_text_parameter():
     deprecation_warning(
-        name='The `text` parameter', replacement='`string`', since='0.4.16'
+        previous_name='The `text` parameter',
+        new_name='`string`',
+        since='0.4.16',
     )
 
 
 def _warn_about_deprecated_properties_parameter():
     deprecation_warning(
-        name='The `properties` parameter',
-        replacement='`features`',
+        previous_name='The `properties` parameter',
+        new_name='`features`',
         since='0.4.16',
     )
 
 
 def _warn_about_deprecated_n_text_parameter():
     deprecation_warning(
-        name='The `n_text` parameter', replacement='`features`', since='0.4.16'
+        previous_name='The `n_text` parameter',
+        new_name='`features`',
+        since='0.4.16',
     )
 
 
 def _warn_about_deprecated_values_parameter():
     deprecation_warning(
-        name='The `values` parameter', replacement='`string`', since='0.4.16'
+        previous_name='The `values` parameter',
+        new_name='`string`',
+        since='0.4.16',
     )

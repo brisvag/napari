@@ -868,7 +868,7 @@ class Window:
     @property
     def qt_viewer(self):
         deprecation_warning(
-            name='Public access to Window.qt_viewer',
+            previous_name='Public access to Window.qt_viewer',
             since='0.4.13',
             window='2027-Q1',
             details=(
@@ -1274,8 +1274,8 @@ class Window:
         # As many plugins uses `_dock_widget` to access one widget from the
         # other widget we should keep this name for a longer period
         deprecation_warning(
-            name='The private `_dock_widgets` property',
-            replacement='the `dock_widgets` property',
+            previous_name='The private `_dock_widgets` property',
+            new_name='the `dock_widgets` property',
             since='0.6.2',
             window='2027-Q1',
             details=(

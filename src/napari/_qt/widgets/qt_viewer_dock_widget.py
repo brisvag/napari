@@ -48,8 +48,8 @@ def warn_deprecated_shortcut(
     if shortcut is not _sentinel:
         details += f' (got {shortcut!r})'
     deprecation_warning(
-        name='The shortcut parameter',
-        replacement='the action and shortcut manager APIs',
+        previous_name='The shortcut parameter',
+        new_name='the action and shortcut manager APIs',
         since='0.4.8',
         window='2027-Q1',
         details=details,

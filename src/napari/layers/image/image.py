@@ -484,8 +484,8 @@ class Image(IntensityVisualizationMixin, ScalarFieldBase):
         if value == 'bicubic':
             value = 'cubic'
             deprecation_warning(
-                name="The 'bicubic' interpolation name",
-                replacement="'cubic'",
+                previous_name="The 'bicubic' interpolation name",
+                new_name="'cubic'",
                 since='0.5.0',
             )
         self._interpolation2d = Interpolation(value)
@@ -505,8 +505,8 @@ class Image(IntensityVisualizationMixin, ScalarFieldBase):
         if value == 'bicubic':
             value = 'cubic'
             deprecation_warning(
-                name="The 'bicubic' interpolation name",
-                replacement="'cubic'",
+                previous_name="The 'bicubic' interpolation name",
+                new_name="'cubic'",
                 since='0.5.0',
             )
         self._interpolation3d = Interpolation(value)

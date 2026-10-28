@@ -285,8 +285,8 @@ def _build_viewer() -> Viewer:
     # just set stack to True similar to the previous store_true action
     if args.stack and len(args.stack) == 1 and len(args.stack[0]) == 0:
         deprecation_warning(
-            name='Using the --stack option as a boolean',
-            replacement="'--stack file1 file2 ... fileN'",
+            previous_name='Using the --stack option as a boolean',
+            new_name="'--stack file1 file2 ... fileN'",
             since='0.4.17',
             details=(
                 'Multiple stacks can be given as '

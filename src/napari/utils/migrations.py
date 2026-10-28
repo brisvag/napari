@@ -24,8 +24,8 @@ DEPRECATION = (
     '{previous_name} is deprecated{since_clause}.{removal}{new_name}{details}'
 )
 
-# Filled into removal for a hard deprecation. due_date is YYYY-QN
-REMOVAL_SCHEDULED = ' It may be removed as early as {due_date}.'
+# Filled into removal for a hard deprecation. window is YYYY-QN
+REMOVAL_SCHEDULED = ' It may be removed as early as {window}.'
 
 # Filled into removal for a soft deprecation.
 REMOVAL_NOT_PLANNED = ' There are no current plans to remove it.'
@@ -45,7 +45,7 @@ def deprecation_message(
     previous_name: LiteralString,
     new_name: LiteralString = '',
     since: LiteralString,
-    due_date: LiteralString | None = None,
+    window: LiteralString | None = None,
     details: LiteralString = '',
 ) -> LiteralString: ...
 
@@ -56,7 +56,7 @@ def deprecation_message(
     previous_name: str,
     new_name: str = '',
     since: str,
-    due_date: str | None = None,
+    window: str | None = None,
     details: str = '',
 ) -> str: ...
 
@@ -66,7 +66,7 @@ def deprecation_message(
     previous_name: str,
     new_name: str = '',
     since: str,
-    due_date: str | None = None,
+    window: str | None = None,
     details: str = '',
 ) -> str:
     """Build a deprecation message in napari's canonical wording.
@@ -85,8 +85,8 @@ def deprecation_message(
         The napari version the deprecation was introduced in. Required, and
         keyword-only, so that no deprecation can ship without provenance.
         Use the first final release in which the warning shipped.
-    due_date : str, optional
-        The removal due date, as a ``YYYY-QN`` token meaning the name may be
+    window : str, optional
+        The removal window, as a ``YYYY-QN`` token meaning the name may be
         removed as early as that quarter. Omit it for a soft deprecation,
         which states that there are no current plans to remove the name.
     details : str
@@ -102,8 +102,8 @@ def deprecation_message(
         previous_name=previous_name,
         since_clause=f' since {since}' if since else '',
         removal=(
-            REMOVAL_SCHEDULED.format(due_date=due_date)
-            if due_date
+            REMOVAL_SCHEDULED.format(window=window)
+            if window
             else REMOVAL_NOT_PLANNED
         ),
         new_name=(
@@ -117,24 +117,24 @@ def deprecation_message(
 
 def deprecation_warning(
     *,
-    name: str,
+    previous_name: str,
     new_name: str = '',
     since: str,
-    due_date: str | None = None,
+    window: str | None = None,
     details: str = '',
     stacklevel: int = 2,
 ) -> None:
     """Emit a canonical deprecation warning.
 
-    The warning **category follows from ``due_date``**: a deprecation that names
-    a removal due date is hard and emits ``FutureWarning``, which end users see;
+    The warning **category follows from ``window``**: a deprecation that names
+    a removal window is hard and emits ``FutureWarning``, which end users see;
     one that does not is soft and emits ``DeprecationWarning``, which is more
     quiet and shows in IDEs (static type checkers), pytest output, and other
     development tools.
 
     Parameters
     ----------
-    name, new_name, since, due_date, details
+    name, new_name, since, window, details
         Passed through to `deprecation_message`.
     stacklevel : int
         The stack level of the *caller*, defaulting to ``2``, meaning the
@@ -142,19 +142,19 @@ def deprecation_warning(
     """
     warnings.warn(
         deprecation_message(
-            previous_name=name,
+            previous_name=previous_name,
             new_name=new_name,
             since=since,
-            due_date=due_date,
+            window=window,
             details=details,
         ),
-        category=_warning_category_for(due_date),
+        category=_warning_category_for(window),
         stacklevel=stacklevel + 1,
     )
 
 
-def _warning_category_for(due_date: str | None) -> type[Warning]:
-    return FutureWarning if due_date else DeprecationWarning
+def _warning_category_for(window: str | None) -> type[Warning]:
+    return FutureWarning if window else DeprecationWarning
 
 
 class RenamedProperty(property):
@@ -171,9 +171,9 @@ class RenamedProperty(property):
     since_version : str
         Version in which the alias was deprecated. An empty string omits the
         version from warning messages.
-    due_date : str, optional
-        Announced removal date or season, such as ``spring 2027``. If omitted,
-        no removal date is announced. This does not automatically disable access.
+    window : str, optional
+        Announced removal window, such as ``spring 2027``. If omitted,
+        no removal window is announced. This does not automatically disable access.
     writable : bool, optional
         Whether assignment through the alias is allowed. Defaults to True.
         The target must also support assignment.
@@ -205,7 +205,7 @@ class RenamedProperty(property):
         *,
         new_name: str,
         since_version: str,
-        due_date: str | None = None,
+        window: str | None = None,
         writable: bool = True,
         doc: str | None = None,
     ) -> None:
@@ -215,7 +215,7 @@ class RenamedProperty(property):
 
         self._new_name = new_name
         self._since_version = since_version
-        self._due_date = due_date
+        self._window = window
         self._owner_name: str | None = None
         self._name: str | None = None
         self._parent_path = tuple(parts[:-1])
@@ -263,7 +263,7 @@ class RenamedProperty(property):
             previous_name=name,
             new_name=self.new_name,
             since=self._since_version,
-            due_date=self._due_date,
+            window=self._window,
         )
 
     @property
@@ -284,20 +284,20 @@ class RenamedProperty(property):
             previous_name=name,
             new_name=new_name,
             since=self._since_version,
-            due_date=self._due_date,
+            window=self._window,
         )
 
     def _get_value(self, instance: object) -> object:
         """Warn and read the target attribute."""
         warnings.warn(
-            self.message, _warning_category_for(self._due_date), stacklevel=2
+            self.message, _warning_category_for(self._window), stacklevel=2
         )
         return getattr(self._resolve_parent(instance), self._target_name)
 
     def _set_value(self, instance: object, value: object) -> None:
         """Warn and assign to the target attribute."""
         warnings.warn(
-            self.message, _warning_category_for(self._due_date), stacklevel=2
+            self.message, _warning_category_for(self._window), stacklevel=2
         )
         setattr(self._resolve_parent(instance), self._target_name, value)
 
@@ -325,7 +325,7 @@ class _RenamedAttribute(NamedTuple):
             previous_name=self.from_name,
             new_name=self.to_name,
             since=self.since_version,
-            due_date=self.version,
+            window=self.version,
         )
 
 
@@ -369,10 +369,10 @@ def rename_argument(
                         f'Please do not mix the deprecated `{from_name}` and its replacement `{to_name}` in the same call.'
                     )
                 deprecation_warning(
-                    name=from_name,
+                    previous_name=from_name,
                     new_name=to_name,
                     since=since_version,
-                    due_date=version,
+                    window=version,
                 )
                 kwargs = kwargs.copy()
                 kwargs[to_name] = kwargs.pop(from_name)
@@ -391,17 +391,17 @@ def _add_deprecated_property(func):
         if args or 'obj' in kwargs:
             if args:
                 deprecation_warning(
-                    name='Using positional arguments for add_deprecated_property',
+                    previous_name='Using positional arguments for add_deprecated_property',
                     new_name='keyword arguments',
                     since='0.10.0',
-                    due_date='spring 2027',
+                    window='spring 2027',
                 )
             else:
                 deprecation_warning(
-                    name='Using the "obj" keyword argument for add_deprecated_property',
+                    previous_name='Using the "obj" keyword argument for add_deprecated_property',
                     new_name='add_deprecated_property(...)(obj)keyword arguments',
                     since='0.10.0',
-                    due_date='spring 2027',
+                    window='spring 2027',
                 )
             if 'obj' in kwargs:
                 obj = kwargs.pop('obj')
@@ -430,7 +430,7 @@ def add_deprecated_property(
     new_name: str,
     version: str | None = None,
     since_version: str = '',
-    due_date: str | None = None,
+    window: str | None = None,
 ) -> Callable[[type], type]:
     """
     Adds deprecated property and links to new property name setter and getter.
@@ -442,22 +442,22 @@ def add_deprecated_property(
     new_name : str
         Name of new property, must have its getter (and setter if applicable) implemented.
     version : str, optional
-        Deprecated and ignored. Use ``due_date`` to announce a removal date.
+        Deprecated and ignored. Use ``window`` to announce a removal window.
     since_version : str
         version when new property was added
-    due_date : str, optional
-        Announced removal date or season, such as "spring 2027". If omitted,
-        no removal date is announced. This does not automatically disable access.
+    window : str, optional
+        Announced removal window, such as "spring 2027". If omitted,
+        no removal window is announced. This does not automatically disable access.
 
     ..deprecated:: 0.9.2
-        `version` argument is deprecated and ignored. Use `due_date` to specify a removal date, or omit it for no announced removal date.
+        `version` argument is deprecated and ignored. Use `window` to specify a removal window, or omit it for no announced removal window.
     """
     if version is not None:
         deprecation_warning(
-            name='the "version" argument to add_deprecated_property',
-            new_name='"due date" to specify a removal date',
+            previous_name='the "version" argument to add_deprecated_property',
+            new_name='"window" to specify a removal window',
             since='0.10.0',
-            due_date='spring 2027',
+            window='spring 2027',
             stacklevel=3,
             details='The version argument will be ignored.',
         )
@@ -470,7 +470,7 @@ def add_deprecated_property(
             raise RuntimeError(f'{new_name} property must exist.')
 
         prop = RenamedProperty(
-            new_name=new_name, since_version=since_version, due_date=due_date
+            new_name=new_name, since_version=since_version, window=window
         )
         setattr(obj, previous_name, prop)
         prop.__set_name__(obj, previous_name)
@@ -521,7 +521,7 @@ def deprecated_constructor_arg_by_attr(name: str) -> Callable:
 def deprecated_class_name(
     new_class: type,
     previous_name: str,
-    version: str,
+    window: str,
     since_version: str,
 ) -> type:
     """Function to deprecate a class.
@@ -537,7 +537,7 @@ def deprecated_class_name(
     """
     msg = (
         f'{previous_name} is deprecated since {since_version} and will be '
-        f'removed in {version}. Please use {new_class.__name__}.'
+        f'removed in {window}. Please use {new_class.__name__}.'
     )
     prealloc_signature = inspect.signature(new_class.__new__)
 

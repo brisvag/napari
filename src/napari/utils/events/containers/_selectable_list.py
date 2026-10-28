@@ -105,8 +105,8 @@ class SelectableEventedList(Selectable[_T], EventedList[_T]):
         """
         # this is just here for now to support the old layerlist API
         deprecation_warning(
-            name='`SelectableEventedList.move_selected`',
-            replacement='`layers.move_multiple` with `layers.selection`',
+            previous_name='`SelectableEventedList.move_selected`',
+            new_name='`layers.move_multiple` with `layers.selection`',
             since='0.4.16',
             window='2027-Q1',
         )
